@@ -10,7 +10,7 @@ def predict_inventory(days=30):
 
     # 🟡 改为相对路径
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(base_dir, 'data')
+    data_dir = os.path.join(base_dir, 'Data')
     file_path = os.path.join(data_dir, 'ModelRevenueDetails_test.xlsx')
     apo_path = os.path.join(data_dir, 'APO.xlsx')
 
