@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Forecast</title>
+  <link rel="icon" href="/static/favicon.png" type="image/x-icon">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body {
+    padding: 2rem;
+    background-color: #f8f9fa;
+  }
+  h1, h2 {
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  .btn-primary {
+    font-size: 1.2rem;
+    padding: 0.5rem 2rem;
+  }
+  .container {
+    max-width: 1200px;
+  }
+  #loadingSpinner {
+    display: none;
+    text-align: center;
+    margin: 2rem 0;
+  }
+</style>
+</head>
+<body>
+  <div class="container text-center">
+    <h1 class="display-4">Container Forecasting</h1>
+    <p>Select how many days to forecast:</p>
+
+    <!-- 选择天数 -->
+    <select id="daysSelect" class="form-select w-50 d-inline-block mb-2">
+      <option value="30" selected>30 Days</option>
+      <option value="60">60 Days</option>
+      <option value="90">90 Days</option>
+    </select>
+    <button onclick="generateForecast()" class="btn btn-primary ms-2">Generate Forecast</button>
+
+    <!-- 加载中动画 -->
+    <div id="loadingSpinner">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
+    <!-- 结果显示区域 -->
+    <div id="results" style="display:none; margin-top:2rem;">
+      <h2>Forecast Chart</h2>
+      <div class="text-center">
+        <img id="resultImage" src="" alt="Prediction Chart" class="img-fluid mb-4">
+      </div>
+
+      <h2>Forecast Table</h2>
+      <div class="table-responsive">
+        <div id="resultTable"></div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function generateForecast() {
+    var days = document.getElementById('daysSelect').value;
+
+    // 显示加载中动画
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+
+    fetch('/predict?days=' + days)
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('resultTable').innerHTML = data.table_html;
+        // 加 ?v=时间戳，防止浏览器缓存旧图
+        document.getElementById('resultImage').src = '/' + data.image + '?v=' + new Date().getTime();
+        document.getElementById('results').style.display = 'block';
+      })
+      .finally(() => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+      });
+  }
+
+  // 页面加载完毕就立即调用 30 天的预测
+  window.onload = generateForecast;
+</script>
+</body>
+</html>
