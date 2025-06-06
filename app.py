@@ -11,23 +11,36 @@ def index():
 
 from flask import jsonify
 
+
+# /predict 路由（仅展示更新部分）
 @app.route('/predict')
 def predict():
     from flask import request, jsonify
     from predict_script import predict_inventory
     days = int(request.args.get('days', 30))
     df = predict_inventory(days=days)
-    df = df[['Date', 'container', 'lower_bound', 'upper_bound']]
-    table_html = df.to_html(index=False, classes='table table-bordered table-hover', justify='center')
+
+    # ✅ 替换 DataFrame 的列名，去掉下划线
+    df.columns = ['Date', 'container', 'lower bound', 'upper bound', 'Sales Prediction', 'Cost Prediction']
+
+    # ✅ to_html: 添加 thead (固定表头在前端可滚动) + classes
+    table_html = df.to_html(
+        index=False,
+        classes='table table-bordered table-hover table-sm text-center',
+        justify='center',
+        border=0
+    )
+    table_html = table_html.replace('<thead>',
+                                    '<thead style="position: sticky; top: 0; background-color: #fff; z-index: 1;">')
+
+    # 返回包含交互式图表链接（或者 prediction.html 链接）等信息
     return jsonify({
         'table_html': table_html,
-        'image': 'static/prediction.png'
+        'interactive_html': 'static/interactive_forecast.html'
     })
-
 
 
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
