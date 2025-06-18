@@ -1,9 +1,14 @@
 from flask import Flask, render_template, send_file
-import pandas as pd
-from flask import request
+from flask import Flask, request, jsonify
+from predict_script import predict_inventory
+import threading
 
 
 app = Flask(__name__)
+
+# 🔒 用线程锁防止并发访问时冲突
+forecast_cache = {}
+lock = threading.Lock()
 
 @app.route('/')
 def index():
@@ -15,15 +20,22 @@ from flask import jsonify
 # /predict 路由（仅展示更新部分）
 @app.route('/predict')
 def predict():
-    from flask import request, jsonify
-    from predict_script import predict_inventory
     days = int(request.args.get('days', 30))
-    df = predict_inventory(days=days)
 
-    # ✅ 替换 DataFrame 的列名，去掉下划线
+    # ✅ 缓存逻辑（不动你的展示结构）
+    with lock:
+        if days in forecast_cache:
+            print(f"✅ 从内存缓存读取 {days} 天预测结果")
+            df = forecast_cache[days]
+        else:
+            print(f"⏳ 正在计算 {days} 天预测结果")
+            df = predict_inventory(days=days)
+            forecast_cache[days] = df
+
+    # ✅ 替换列名展示更友好
     df.columns = ['Date', 'container', 'lower bound', 'upper bound', 'Sales Prediction', 'Cost Prediction']
 
-    # ✅ to_html: 添加 thead (固定表头在前端可滚动) + classes
+    # ✅ 渲染表格 HTML
     table_html = df.to_html(
         index=False,
         classes='table table-bordered table-hover table-sm text-center',
@@ -31,9 +43,9 @@ def predict():
         border=0
     )
     table_html = table_html.replace('<thead>',
-                                    '<thead style="position: sticky; top: 0; background-color: #fff; z-index: 1;">')
+        '<thead style="position: sticky; top: 0; background-color: #fff; z-index: 1;">')
 
-    # 返回包含交互式图表链接（或者 prediction.html 链接）等信息
+    # ✅ 返回 JSON 格式（不改原结构）
     return jsonify({
         'table_html': table_html,
         'interactive_html': 'static/interactive_forecast.html'
@@ -45,4 +57,3 @@ if __name__ == '__main__':
 
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
