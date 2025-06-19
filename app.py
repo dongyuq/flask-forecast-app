@@ -22,7 +22,7 @@ from flask import jsonify
 def predict():
     days = int(request.args.get('days', 30))
 
-    # ✅ 缓存逻辑（不动你的展示结构）
+    # ✅ 缓存预测结果
     with lock:
         if days in forecast_cache:
             print(f"✅ 从内存缓存读取 {days} 天预测结果")
@@ -32,10 +32,8 @@ def predict():
             df = predict_inventory(days=days)
             forecast_cache[days] = df
 
-    # ✅ 替换列名展示更友好
     df.columns = ['Date', 'container', 'lower bound', 'upper bound', 'Sales Prediction', 'Cost Prediction']
 
-    # ✅ 渲染表格 HTML
     table_html = df.to_html(
         index=False,
         classes='table table-bordered table-hover table-sm text-center',
@@ -45,15 +43,16 @@ def predict():
     table_html = table_html.replace('<thead>',
         '<thead style="position: sticky; top: 0; background-color: #fff; z-index: 1;">')
 
-    # ✅ 返回 JSON 格式（不改原结构）
+    # ✅ 关键修改：返回正确图表路径（前端其实用不上这个字段也没事）
     return jsonify({
         'table_html': table_html,
-        'interactive_html': 'static/interactive_forecast.html'
+        'interactive_html': f'static/container_forecast_{days}.html'
     })
+
 
 
 if __name__ == '__main__':
     import os
 
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5000))  # Render 会提供 PORT 环境变量
     app.run(host='0.0.0.0', port=port)
