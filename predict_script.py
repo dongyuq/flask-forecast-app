@@ -117,7 +117,7 @@ def predict_inventory(days=30):
             x=pd.concat([future_df['Date'], future_df['Date'][::-1]]),
             y=pd.concat([future_df['upper_bound'], future_df['lower_bound'][::-1]]),
             fill='toself', fillcolor='rgba(135, 206, 250, 0.3)',
-            line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", showlegend=True, name='80% Confidence Interval'
+            line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", showlegend=True, name='Forecast Range'
         ))
         fig1.update_layout(
             title={'text': f'{days}-Day Container Forecast', 'x': 0.5, 'xanchor': 'center'},
@@ -134,7 +134,15 @@ def predict_inventory(days=30):
             margin=dict(l=20, r=20, t=30, b=20)
         )
 
-        fig1.write_html(container_chart_path)
+        fig1.write_html(container_chart_path, config={
+        'modeBarButtonsToRemove': [
+            'zoom2d', 'pan2d', 'select2d', 'lasso2d',
+            'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d',
+            'toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian'
+        ],
+        'modeBarButtonsToAdd': ['zoomIn2d', 'zoomOut2d', 'toImage'],
+        'displaylogo': False
+    })
     else:
         print(f"✅ 已存在 container_forecast_{days}.html")
 
@@ -158,7 +166,15 @@ def predict_inventory(days=30):
             margin=dict(l=20, r=20, t=30, b=20)
         )
 
-        fig2.write_html(sales_cost_chart_path)
+        fig2.write_html(sales_cost_chart_path, config={
+        'modeBarButtonsToRemove': [
+            'zoom2d', 'pan2d', 'select2d', 'lasso2d',
+            'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d',
+            'toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian'
+        ],
+        'modeBarButtonsToAdd': ['zoomIn2d', 'zoomOut2d', 'toImage'],
+        'displaylogo': False
+    })
     else:
         print(f"✅ 已存在 sales_cost_forecast_{days}.html")
 

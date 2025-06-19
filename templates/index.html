@@ -119,9 +119,10 @@
 
       <!-- ⭐️ Forecast Table -->
       <div class="card shadow-sm rounded p-3 mb-0" style="max-height: 600px; overflow-y: auto;">
-        <h2 class="sticky-top bg-white text-start py-2 mb-1" style="top: 0; font-size: 1.3rem; color: #333; font-weight: 600; z-index: 1;">
-          Forecast Data
-        </h2>
+        <div class="d-flex justify-content-between align-items-center sticky-top bg-white py-2 mb-1" style="top: 0; z-index: 1;">
+            <h2 class="mb-0" style="font-size: 1.3rem; color: #333; font-weight: 600;">Forecast Data</h2>
+            <a id="downloadBtn" class="btn btn-sm btn-outline-primary" href="#">⬇️ Download</a>
+          </div>
         <div class="table-responsive">
           <div id="resultTable"></div>
         </div>
@@ -148,6 +149,8 @@
           '/static/container_forecast_' + days + '.html?v=' + new Date().getTime();
 
         document.getElementById('results').style.display = 'block';
+         // ✅ 更新下载按钮链接
+        document.getElementById('downloadBtn').href = '/download?days=' + days;
       })
       .finally(() => {
         document.getElementById('loadingSpinner').style.display = 'none';

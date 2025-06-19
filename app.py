@@ -49,6 +49,39 @@ def predict():
         'interactive_html': f'static/container_forecast_{days}.html'
     })
 
+from flask import send_file
+import io
+
+@app.route('/download')
+def download():
+    import io
+    from flask import send_file
+    import pandas as pd
+
+    days = int(request.args.get('days', 30))
+    df = forecast_cache.get(days)
+
+    if df is None:
+        from predict_script import predict_inventory
+        df = predict_inventory(days)
+        forecast_cache[days] = df
+
+    df.columns = ['Date', 'container', 'lower bound', 'upper bound', 'Sales Prediction', 'Cost Prediction']
+
+    # 写入内存中的 Excel 文件
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Forecast')
+
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'forecast_{days}_days.xlsx'
+    )
+
 
 
 if __name__ == '__main__':
