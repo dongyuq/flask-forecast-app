@@ -97,13 +97,19 @@ def apo():
             apo_path = os.path.join(data_dir, 'APO.csv')
             apo_df = pd.read_csv(apo_path, parse_dates=['Date'])
             apo_df.sort_values('Date', inplace=True)
+
+            # ✅ 补全所有日期并填充0
+            full_dates = pd.date_range(start=apo_df['Date'].min(), end=apo_df['Date'].max())
+            apo_df = apo_df.set_index('Date').reindex(full_dates).fillna(0).rename_axis('Date').reset_index()
+            apo_df.columns = ['Date', 'APO']
+            apo_df['APO'] = apo_df['APO'].astype(int)  # ✅ 转换为整数
             apo_cache = apo_df
         else:
             print("✅ 从内存读取 APO 数据")
             apo_df = apo_cache
 
     dates = apo_df['Date'].dt.strftime('%Y-%m-%d').tolist()
-    values = apo_df['APO'].tolist()
+    values = apo_df['APO'].tolist() if 'APO' in apo_df.columns else apo_df.iloc[:, 1].tolist()
 
     table_html = apo_df.to_html(
         index=False,
@@ -117,6 +123,7 @@ def apo():
         dates=dates,
         values=values
     )
+
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'Data')
