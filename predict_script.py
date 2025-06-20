@@ -1,7 +1,6 @@
 def predict_inventory(days=30):
     import os
     import pandas as pd
-    import numpy as np
     import pickle
     import plotly.graph_objs as go
 
@@ -46,7 +45,7 @@ def predict_inventory(days=30):
     z_score = 1.28
 
     # 生成未来日期
-    forecast_dates = pd.date_range(start='2025-06-01', periods=days, freq='D')
+    forecast_dates = pd.date_range(start='2025-06-21', periods=days, freq='D')
     future_df = pd.DataFrame({'Date': forecast_dates})
     future_df['dayofweek'] = future_df['Date'].dt.dayofweek
     future_df['day'] = future_df['Date'].dt.day
@@ -177,5 +176,9 @@ def predict_inventory(days=30):
     })
     else:
         print(f"✅ 已存在 sales_cost_forecast_{days}.html")
+        print("✅ 文件路径：", file_path)
+        print("✅ 模型文件路径：", os.path.join(base_dir, 'rf_model_cuft.pkl'))
+        print("✅ 数据文件是否存在：", os.path.exists(file_path))
+        print("✅ 模型是否存在：", os.path.exists(os.path.join(base_dir, 'rf_model_cuft.pkl')))
 
     return future_df[['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction']]
