@@ -1,0 +1,52 @@
+<!-- templates/menu.html -->
+<!-- Menu 按钮 -->
+<button id="menuBtn" class="btn btn-primary" type="button"
+        data-bs-toggle="offcanvas" data-bs-target="#offcanvasNav"
+        aria-controls="offcanvasNav">
+  ☰ Menu
+</button>
+
+<!-- Offcanvas 导航 -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNav" aria-labelledby="offcanvasNavLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="offcanvasNavLabel">导航</h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <ul class="nav flex-column">
+      <li class="nav-item mb-2">
+        <a class="nav-link" href="/">Container Forecast</a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link" href="/sales">Sales</a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link" href="/apo">APO</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<style>
+  #menuBtn {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1050;
+  }
+  .offcanvas {
+    background-color: #f1f1f1 !important;
+  }
+  .offcanvas .offcanvas-header {
+    background-color: #e9ecef !important;
+  }
+  .offcanvas .nav-link {
+    color: #333 !important;
+    text-decoration: none;
+    padding: 0.5rem 0;
+  }
+  .offcanvas .nav-link:hover {
+    color: #000 !important;
+    background-color: #e0e0e0 !important;
+  }
+</style>

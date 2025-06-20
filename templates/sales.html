@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sales Summary</title>
+  <link rel="icon" href="/static/favicon.png" type="image/x-icon">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 0;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #333;
+    }
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #fff;
+      padding: 1.5rem 1rem;
+      border-bottom: 1px solid #dee2e6;
+      text-align: center;
+    }
+    h1.display-5 {
+      margin: 0;
+      font-weight: 700;
+      font-size: 2rem;
+    }
+
+    #chart-container {
+      height: 600px;
+      margin: 3rem 1rem;
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 0.25rem;
+      padding: 0.5rem;
+    }
+    #chart-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .table-card {
+      margin: 1rem auto 2rem;
+      max-width: 800px;
+      width: 90%;
+    }
+    .table-card .card-header {
+      background-color: #f1f1f1;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      text-align: center;
+    }
+    .table-card .card-body {
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 0;
+    }
+    .table-card .table-responsive {
+      text-align: center;
+    }
+    .table-card .table-responsive table {
+      margin: 0 auto;
+      display: inline-table;
+    }
+    .table-card .table-responsive table th:first-child,
+    .table-card .table-responsive table td:first-child {
+      width: 120px;
+      max-width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ✅ 引用封装好的菜单 -->
+  {% include 'menu.html' %}
+
+  <!-- 标题 -->
+  <div class="sticky-header">
+    <h1 class="display-5">Sales Summary</h1>
+  </div>
+
+  <!-- 图表 -->
+  <div id="chart-container">
+    <canvas id="salesChart"></canvas>
+  </div>
+
+  <!-- 表格 -->
+  <div class="card table-card">
+    <div class="card-header">Monthly Sales Data</div>
+    <div class="card-body table-responsive">
+      {{ table_html | safe }}
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const labels = {{ months | tojson }};
+    const salesData = {{ sales_values | tojson }};
+    const costData = {{ cost_values | tojson }};
+    const cuftData = {{ cuft_values | tojson }};
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Sales ($)',
+            data: salesData,
+            borderColor: 'blue',
+            fill: false,
+            tension: 0.2,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Cost ($)',
+            data: costData,
+            borderColor: 'orange',
+            fill: false,
+            tension: 0.2,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Total Cuft (CBF)',
+            data: cuftData,
+            borderColor: 'green',
+            fill: false,
+            tension: 0.2,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Month' }
+          },
+          y: {
+            position: 'left',
+            title: { display: true, text: 'Sales / Cost ($)' },
+            beginAtZero: true
+          },
+          y1: {
+            position: 'right',
+            title: { display: true, text: 'Total Cuft (CBF)' },
+            beginAtZero: true,
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

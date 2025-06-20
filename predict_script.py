@@ -105,8 +105,8 @@ def predict_inventory(days=30):
     future_df[['Sales Prediction', 'Cost Prediction']] = future_df[['Sales Prediction', 'Cost Prediction']].round(0).astype(int)
 
     # 图表文件按天数命名，避免重复生成
-    container_chart_path = os.path.join(static_dir, f'container_forecast_{days}.html')
-    sales_cost_chart_path = os.path.join(static_dir, f'sales_cost_forecast_{days}.html')
+    container_chart_path = os.path.join(static_dir, f'forecast/container_forecast_{days}.html')
+    sales_cost_chart_path = os.path.join(static_dir, f'forecast/sales_cost_forecast_{days}.html')
 
     if not os.path.exists(container_chart_path):
         print(f"📈 生成 container_forecast_{days}.html")
