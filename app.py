@@ -70,7 +70,7 @@ def download():
 
     # 写入内存中的 Excel 文件
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    with pd.ExcelWriter(output) as writer:
         df.to_excel(writer, index=False, sheet_name='Forecast')
 
     output.seek(0)
