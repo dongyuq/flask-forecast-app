@@ -85,7 +85,7 @@
   <div class="container-fluid">
     <!-- 顶部标题 -->
     <div class="sticky-header">
-      <h1 class="display-5">APO</h1>
+      <h1 class="display-5">APO (Container)</h1>
     </div>
 
     <!-- 折线图 -->
@@ -95,7 +95,7 @@
 
     <!-- 表格 -->
     <div class="card table-card">
-      <div class="card-header">APO Data</div>
+      <div class="card-header">APO Data (Container)</div>
       <div class="card-body table-responsive">
         {{ table_html | safe }}
       </div>
@@ -126,7 +126,7 @@
       options: {
         scales: {
           x: { title: { display: true, text: 'Date' }, ticks: { maxRotation: 45, minRotation: 45 } },
-          y: { title: { display: true, text: 'APO' }, beginAtZero: true }
+          y: { title: { display: true, text: 'APO Container' }, beginAtZero: true }
         },
         plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
         maintainAspectRatio: false
