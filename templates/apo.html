@@ -80,12 +80,20 @@
 
   <!-- ✅ 引入封装好的菜单 -->
   {% include 'menu.html' %}
+  {% include 'header.html' %}
 
   <!-- 主内容 -->
   <div class="container-fluid">
     <!-- 顶部标题 -->
     <div class="sticky-header">
       <h1 class="display-5">APO (Container)</h1>
+    </div>
+
+    <!-- 🚧 HMLG 提示区域 -->
+    <div id="underDevMessage" style="display: none; margin: 2rem auto; max-width: 600px;">
+      <div class="alert alert-warning text-center" role="alert">
+        🚧 HMLG warehouse functionality is under development.
+      </div>
     </div>
 
     <!-- 折线图 -->
@@ -105,33 +113,54 @@
   <!-- Bootstrap & Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    const dates = {{ dates | tojson }};
-    const values = {{ values | tojson }};
 
-    const ctx = document.getElementById('apoChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: dates,
-        datasets: [{
-          label: 'APO',
-          data: values,
-          fill: false,
-          tension: 0.1,
-          borderWidth: 2,
-          pointRadius: 3
-        }]
-      },
-      options: {
-        scales: {
-          x: { title: { display: true, text: 'Date' }, ticks: { maxRotation: 45, minRotation: 45 } },
-          y: { title: { display: true, text: 'APO Container' }, beginAtZero: true }
+  <script>
+    // 获取仓库类型
+    const selectedWH = localStorage.getItem('selectedWH') || 'NJ';
+
+    if (selectedWH === 'HMLG') {
+      // ✅ HMLG 显示提示，隐藏图表和表格
+      document.getElementById('underDevMessage').style.display = 'block';
+      document.getElementById('chart-container').style.display = 'none';
+      document.querySelector('.table-card').style.display = 'none';
+    } else {
+      // ✅ NJ：正常加载图表
+      const dates = {{ dates | tojson }};
+      const values = {{ values | tojson }};
+
+      const ctx = document.getElementById('apoChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: 'APO',
+            data: values,
+            fill: false,
+            tension: 0.1,
+            borderWidth: 2,
+            pointRadius: 3
+          }]
         },
-        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
-        maintainAspectRatio: false
-      }
-    });
+        options: {
+          scales: {
+            x: {
+              title: { display: true, text: 'Date' },
+              ticks: { maxRotation: 45, minRotation: 45 }
+            },
+            y: {
+              title: { display: true, text: 'APO Container' },
+              beginAtZero: true
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          maintainAspectRatio: false
+        }
+      });
+    }
   </script>
 </body>
 </html>

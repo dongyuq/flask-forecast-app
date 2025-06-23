@@ -105,11 +105,11 @@ def predict_inventory(days=30):
     future_df[['Sales Prediction', 'Cost Prediction']] = future_df[['Sales Prediction', 'Cost Prediction']].round(0).astype(int)
 
     # 图表文件按天数命名，避免重复生成
-    container_chart_path = os.path.join(static_dir, f'forecast/container_forecast_{days}.html')
-    sales_cost_chart_path = os.path.join(static_dir, f'forecast/sales_cost_forecast_{days}.html')
+    container_chart_path = os.path.join(static_dir, f'forecast/container_forecast_{days}_NJ.html')
+    sales_cost_chart_path = os.path.join(static_dir, f'forecast/sales_cost_forecast_{days}_NJ.html')
 
     if not os.path.exists(container_chart_path):
-        print(f"📈 生成 container_forecast_{days}.html")
+        print(f"📈 生成 container_forecast_{days}_NJ.html")
         fig1 = go.Figure()
         fig1.add_trace(go.Scatter(x=future_df['Date'], y=future_df['container'], mode='lines', name='Container', line=dict(color='royalblue')))
         fig1.add_trace(go.Scatter(
@@ -143,10 +143,10 @@ def predict_inventory(days=30):
         'displaylogo': False
     })
     else:
-        print(f"✅ 已存在 container_forecast_{days}.html")
+        print(f"✅ 已存在 container_forecast_{days}_NJ.html")
 
     if not os.path.exists(sales_cost_chart_path):
-        print(f"📈 生成 sales_cost_forecast_{days}.html")
+        print(f"📈 生成 sales_cost_forecast_{days}_NJ.html")
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(x=future_df['Date'], y=future_df['Sales Prediction'], mode='lines', name='Sales', line=dict(color='green')))
         fig2.add_trace(go.Scatter(x=future_df['Date'], y=future_df['Cost Prediction'], mode='lines', name='Cost', line=dict(color='orange')))

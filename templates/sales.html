@@ -80,10 +80,18 @@
 
   <!-- ✅ 引用封装好的菜单 -->
   {% include 'menu.html' %}
+  {% include 'header.html' %}
 
   <!-- 标题 -->
   <div class="sticky-header">
     <h1 class="display-5">Sales Summary</h1>
+  </div>
+
+  <!-- 🚧 HMLG 提示区域 -->
+  <div id="underDevMessage" style="display: none; margin: 2rem auto; max-width: 600px;">
+    <div class="alert alert-warning text-center" role="alert">
+      🚧 HMLG warehouse functionality is under development.
+    </div>
   </div>
 
   <!-- 图表 -->
@@ -103,68 +111,76 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    const labels = {{ months | tojson }};
-    const salesData = {{ sales_values | tojson }};
-    const costData = {{ cost_values | tojson }};
-    const cuftData = {{ cuft_values | tojson }};
+    const selectedWH = localStorage.getItem('selectedWH') || 'NJ';
 
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Sales ($)',
-            data: salesData,
-            borderColor: 'blue',
-            fill: false,
-            tension: 0.2,
-            yAxisID: 'y'
-          },
-          {
-            label: 'Cost ($)',
-            data: costData,
-            borderColor: 'orange',
-            fill: false,
-            tension: 0.2,
-            yAxisID: 'y'
-          },
-          {
-            label: 'Total Cuft (CBF)',
-            data: cuftData,
-            borderColor: 'green',
-            fill: false,
-            tension: 0.2,
-            yAxisID: 'y1'
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'top' },
-          tooltip: { mode: 'index', intersect: false }
+    if (selectedWH === 'HMLG') {
+      document.getElementById('underDevMessage').style.display = 'block';
+      document.getElementById('chart-container').style.display = 'none';
+      document.querySelector('.table-card').style.display = 'none';
+    } else {
+      const labels = {{ months | tojson }};
+      const salesData = {{ sales_values | tojson }};
+      const costData = {{ cost_values | tojson }};
+      const cuftData = {{ cuft_values | tojson }};
+
+      const ctx = document.getElementById('salesChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Sales ($)',
+              data: salesData,
+              borderColor: 'blue',
+              fill: false,
+              tension: 0.2,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Cost ($)',
+              data: costData,
+              borderColor: 'orange',
+              fill: false,
+              tension: 0.2,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Total Cuft (CBF)',
+              data: cuftData,
+              borderColor: 'green',
+              fill: false,
+              tension: 0.2,
+              yAxisID: 'y1'
+            }
+          ]
         },
-        scales: {
-          x: {
-            title: { display: true, text: 'Month' }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: { mode: 'index', intersect: false }
           },
-          y: {
-            position: 'left',
-            title: { display: true, text: 'Sales / Cost ($)' },
-            beginAtZero: true
-          },
-          y1: {
-            position: 'right',
-            title: { display: true, text: 'Total Cuft (CBF)' },
-            beginAtZero: true,
-            grid: { drawOnChartArea: false }
+          scales: {
+            x: {
+              title: { display: true, text: 'Month' }
+            },
+            y: {
+              position: 'left',
+              title: { display: true, text: 'Sales / Cost ($)' },
+              beginAtZero: true
+            },
+            y1: {
+              position: 'right',
+              title: { display: true, text: 'Total Cuft (CBF)' },
+              beginAtZero: true,
+              grid: { drawOnChartArea: false }
+            }
           }
         }
-      }
-    });
+      });
+    }
   </script>
 </body>
 </html>

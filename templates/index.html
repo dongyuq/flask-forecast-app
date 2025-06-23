@@ -70,6 +70,7 @@
 
   <!-- ✅ 引用封装的菜单 -->
   {% include 'menu.html' %}
+  {% include 'header.html' %}
   <!-- 原有页面内容 -->
   <div class="container">
     <!-- 顶部 -->
@@ -131,42 +132,55 @@
         </div>
       </div>
     </div>
+    <div id="underDevMessage" style="display: none; margin-top: 2rem;">
+  <div class="alert alert-warning text-center" role="alert">
+    🚧 HMLG warehouse functionality is under development.
+  </div>
+</div>
+
   </div>
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    let days = 30;  // ⬅️ 用于记录当前选择的天数
+  let days = 30;
 
-    function generateForecast() {
-      days = document.getElementById('daysSelect').value;
-      document.getElementById('loadingSpinner').style.display = 'block';
+  function generateForecast() {
+    const wh = localStorage.getItem('selectedWH') || 'NJ';
+    days = document.getElementById('daysSelect').value;
+
+    // ✅ 如果是 HMLG，显示提示，不加载
+    if (wh === 'HMLG') {
+      document.getElementById('underDevMessage').style.display = 'block';
       document.getElementById('results').style.display = 'none';
-
-      fetch('/predict?days=' + days)
-        .then(response => response.json())
-        .then(data => {
-          document.getElementById('resultTable').innerHTML = data.table_html;
-
-          // 默认显示 container 图
-          document.getElementById('forecastIframe').src =
-            '/static/forecast/container_forecast_' + days + '.html?v=' + new Date().getTime();
-
-          document.getElementById('results').style.display = 'block';
-          // 更新下载按钮链接
-          document.getElementById('downloadBtn').href = '/download?days=' + days;
-        })
-        .finally(() => {
-          document.getElementById('loadingSpinner').style.display = 'none';
-        });
+      document.getElementById('loadingSpinner').style.display = 'none';
+      return;
     }
 
-    window.onload = generateForecast;
+    // ✅ NJ 正常加载流程
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('underDevMessage').style.display = 'none';
 
-    // 切换图表按钮逻辑
+    fetch('/predict?days=' + days)
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('resultTable').innerHTML = data.table_html;
+        document.getElementById('forecastIframe').src =
+          '/static/forecast/container_forecast_' + days + '_NJ.html?v=' + new Date().getTime();
+        document.getElementById('downloadBtn').href = '/download?days=' + days;
+        document.getElementById('results').style.display = 'block';
+      })
+      .finally(() => {
+        document.getElementById('loadingSpinner').style.display = 'none';
+      });
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnContainer').onclick = function () {
+      const wh = localStorage.getItem('selectedWH') || 'NJ';
       document.getElementById('forecastIframe').src =
-        '/static/forecast/container_forecast_' + days + '.html?v=' + new Date().getTime();
+        '/static/forecast/container_forecast_' + days + '_' + wh + '.html?v=' + new Date().getTime();
       this.classList.add('btn-primary');
       this.classList.remove('btn-secondary');
       document.getElementById('btnSalesCost').classList.add('btn-secondary');
@@ -174,13 +188,18 @@
     };
 
     document.getElementById('btnSalesCost').onclick = function () {
+      const wh = localStorage.getItem('selectedWH') || 'NJ';
       document.getElementById('forecastIframe').src =
-        '/static/forecast/sales_cost_forecast_' + days + '.html?v=' + new Date().getTime();
+        '/static/forecast/sales_cost_forecast_' + days + '_' + wh + '.html?v=' + new Date().getTime();
       this.classList.add('btn-primary');
       this.classList.remove('btn-secondary');
       document.getElementById('btnContainer').classList.add('btn-secondary');
       document.getElementById('btnContainer').classList.remove('btn-primary');
     };
-  </script>
+
+    generateForecast();
+  });
+</script>
+
 </body>
 </html>

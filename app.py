@@ -51,7 +51,7 @@ def predict():
     # ✅ 关键修改：返回正确图表路径（前端其实用不上这个字段也没事）
     return jsonify({
         'table_html': table_html,
-        'interactive_html': f'static/forecast/container_forecast_{days}.html'
+        'interactive_html': f'static/forecast/container_forecast_{days}_NJ.html'
     })
 
 from flask import send_file
@@ -84,7 +84,7 @@ def download():
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name=f'forecast_{days}_days.xlsx'
+        download_name=f'forecast_{days}_days_NJ.xlsx'
     )
 
 @app.route('/apo')

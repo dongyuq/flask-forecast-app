@@ -1,0 +1,50 @@
+<!-- header.html -->
+<style>
+  .floating-warehouse {
+    position: fixed;
+    top: 10px;
+    right: 20px;
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    background-color: white;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+
+  .floating-warehouse label {
+    margin-right: 8px;
+    font-weight: bold;
+  }
+
+  .floating-warehouse select {
+    min-width: 100px;
+  }
+</style>
+
+<div class="floating-warehouse">
+  <label for="globalWHSelect">Warehouse:</label>
+  <select id="globalWHSelect" class="form-select form-select-sm">
+    <option value="NJ">NJ</option>
+    <option value="HMLG">HMLG</option>
+  </select>
+</div>
+
+<script>
+  if (!localStorage.getItem('selectedWH')) {
+    localStorage.setItem('selectedWH', 'NJ');
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const whSelect = document.getElementById('globalWHSelect');
+    if (whSelect) {
+      whSelect.value = localStorage.getItem('selectedWH') || 'NJ';
+      whSelect.addEventListener('change', () => {
+        localStorage.setItem('selectedWH', whSelect.value);
+        location.reload();
+      });
+    }
+  });
+</script>
