@@ -80,6 +80,11 @@
           <h1 class="display-5">Container Forecasting</h1>
           <p>Select how many days to forecast:</p>
           <div class="forecast-controls d-flex justify-content-center align-items-center">
+            <div class="me-3 text-muted" style="white-space: nowrap; font-size: 0.9rem;">
+              <span style="font-size: 0.9rem; color: #555; font-weight: 500;">
+                ⏱️ Last update: {{ last_update }}
+              </span>
+            </div>
             <select id="daysSelect" class="form-select d-inline-block" style="width: 200px;">
               <option value="30" selected>30 Days</option>
               <option value="60">60 Days</option>
@@ -87,10 +92,11 @@
             </select>
             <button onclick="generateForecast()" class="btn btn-primary ms-2">Generate Forecast</button>
           </div>
+
         </div>
         <div class="col-md-4 text-end">
           <div class="gauge-container">
-            <img src="/static/gauge.png" alt="Gauge Chart" class="img-fluid rounded">
+            <img src="/static/gauge.png?v={{ timestamp }}" alt="Gauge Chart" class="img-fluid rounded">
           </div>
         </div>
       </div>
@@ -118,7 +124,7 @@
 
       <!-- ⭐️ 图表 iframe -->
       <div class="card shadow-sm rounded p-3 mb-2">
-        <iframe id="forecastIframe" src="/static/forecast/container_forecast_30.html" class="w-100 rounded" style="height: 580px;"></iframe>
+        <iframe id="forecastIframe" src="/static/forecast/container_forecast_30_NJ.html" class="w-100 rounded" style="height: 580px;"></iframe>
       </div>
 
       <!-- ⭐️ Forecast Table -->

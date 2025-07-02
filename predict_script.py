@@ -1,18 +1,33 @@
-def predict_inventory(days=30):
+from db_utils import query_to_dataframe  # 顶部导入
+def load_sql(file_name):
+    import os
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    sql_path = os.path.join(base_dir, 'sql', file_name)
+    with open(sql_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+def predict_inventory(days=30,force=False):
     import os
     import pandas as pd
     import pickle
     import plotly.graph_objs as go
+    from db_utils import query_to_dataframe
+    from gauge_plot import get_current_container
+
+    # 获取数据库中的实际库存 container 数量
+    container = get_current_container()
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(base_dir, 'Data')
-    static_dir = os.path.join(base_dir, 'static')
+    # 加载主数据（Total Cuft / Sales / Cost）
+    sql_cuft = load_sql('daily_cuft_sales_cost.sql')
+    df = query_to_dataframe(sql_cuft)
+    df['Invoice Date'] = pd.to_datetime(df['Invoice Date'])
 
-    file_path = os.path.join(data_dir, 'ModelRevenueDetails_test.csv')
-    apo_path = os.path.join(data_dir, 'APO.csv')
+    # 加载 APO 数据
+    sql_apo = load_sql('daily_apo.sql')
+    incoming_df = query_to_dataframe(sql_apo)
+    incoming_df['Date'] = pd.to_datetime(incoming_df['Date'])
 
-    # 读取数据
-    df = pd.read_csv(file_path)
     df['Invoice Date'] = pd.to_datetime(df['Invoice Date'])
 
     daily_df = df.groupby('Invoice Date').agg({
@@ -45,7 +60,7 @@ def predict_inventory(days=30):
     z_score = 1.28
 
     # 生成未来日期
-    forecast_dates = pd.date_range(start='2025-06-21', periods=days, freq='D')
+    forecast_dates = pd.date_range(start=pd.Timestamp.today().normalize(), periods=days, freq='D')
     future_df = pd.DataFrame({'Date': forecast_dates})
     future_df['dayofweek'] = future_df['Date'].dt.dayofweek
     future_df['day'] = future_df['Date'].dt.day
@@ -68,7 +83,15 @@ def predict_inventory(days=30):
             lag2 = lag1 if i == 1 else cuft_preds[-2]
             lag7 = lag1 if i < 7 else cuft_preds[i - 7]
 
-        features = [[future_df.loc[i, 'dayofweek'], future_df.loc[i, 'day'], future_df.loc[i, 'month'], lag1, lag2, lag7]]
+        features = pd.DataFrame([{
+            'dayofweek': future_df.loc[i, 'dayofweek'],
+            'day': future_df.loc[i, 'day'],
+            'month': future_df.loc[i, 'month'],
+            'lag1': lag1,
+            'lag2': lag2,
+            'lag7': lag7
+        }])
+
         cuft_pred = rf_cuft.predict(features)[0]
         sales_pred = rf_sales.predict(features)[0]
         cost_pred = rf_cost.predict(features)[0]
@@ -84,13 +107,11 @@ def predict_inventory(days=30):
     future_df['upper'] = future_df['Total Cuft Prediction'] + z_score * residual_std
 
     # 加入 APO 数据
-    incoming_df = pd.read_csv(apo_path)
     incoming_df['Date'] = pd.to_datetime(incoming_df['Date'])
     future_df = future_df.merge(incoming_df, on='Date', how='left')
     future_df['APO'] = future_df['APO'].fillna(0)
 
     container_list = []
-    container = 105
     for _, row in future_df.iterrows():
         sold = row['Total Cuft Prediction'] / 2350
         container = container - sold + row['APO']
@@ -103,12 +124,13 @@ def predict_inventory(days=30):
 
     future_df[['container', 'lower_bound', 'upper_bound']] = future_df[['container', 'lower_bound', 'upper_bound']].round(2)
     future_df[['Sales Prediction', 'Cost Prediction']] = future_df[['Sales Prediction', 'Cost Prediction']].round(0).astype(int)
+    static_dir = os.path.join(base_dir, 'static')
 
     # 图表文件按天数命名，避免重复生成
     container_chart_path = os.path.join(static_dir, f'forecast/container_forecast_{days}_NJ.html')
     sales_cost_chart_path = os.path.join(static_dir, f'forecast/sales_cost_forecast_{days}_NJ.html')
 
-    if not os.path.exists(container_chart_path):
+    if force or not os.path.exists(container_chart_path):
         print(f"📈 生成 container_forecast_{days}_NJ.html")
         fig1 = go.Figure()
         fig1.add_trace(go.Scatter(x=future_df['Date'], y=future_df['container'], mode='lines', name='Container', line=dict(color='royalblue')))
@@ -145,7 +167,7 @@ def predict_inventory(days=30):
     else:
         print(f"✅ 已存在 container_forecast_{days}_NJ.html")
 
-    if not os.path.exists(sales_cost_chart_path):
+    if force or not os.path.exists(sales_cost_chart_path):
         print(f"📈 生成 sales_cost_forecast_{days}_NJ.html")
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(x=future_df['Date'], y=future_df['Sales Prediction'], mode='lines', name='Sales', line=dict(color='green')))
@@ -176,9 +198,9 @@ def predict_inventory(days=30):
     })
     else:
         print(f"✅ 已存在 sales_cost_forecast_{days}.html")
-        print("✅ 文件路径：", file_path)
+        print("✅ 文件路径：", base_dir)
         print("✅ 模型文件路径：", os.path.join(base_dir, 'rf_model_cuft.pkl'))
-        print("✅ 数据文件是否存在：", os.path.exists(file_path))
+        print("✅ 数据文件是否存在：", os.path.exists(base_dir))
         print("✅ 模型是否存在：", os.path.exists(os.path.join(base_dir, 'rf_model_cuft.pkl')))
 
     return future_df[['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction']]

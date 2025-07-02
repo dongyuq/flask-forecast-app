@@ -1,7 +1,22 @@
+import matplotlib
+matplotlib.use('Agg')  # ✅ 使用非交互式后端，适合服务器/脚本
+
 import matplotlib.pyplot as plt
+from matplotlib.patches import Wedge
 import numpy as np
 import os
-from matplotlib.patches import Wedge
+
+# 文件：gauge_utils.py 或 utils.py
+from db_utils import query_to_dataframe
+
+def get_current_container():
+    sql = """
+    SELECT total / 2350 AS container FROM bi.v_inventory_total;
+    """
+    df = query_to_dataframe(sql)
+    if df.empty:
+        return 0
+    return round(df.iloc[0]['container'], 2)
 
 def plot_half_gauge(value, min_val, max_val, title, save_path):
     fig, ax = plt.subplots(figsize=(4, 2.2))  # 🔧 适配你网页的比例
@@ -49,12 +64,12 @@ def plot_half_gauge(value, min_val, max_val, title, save_path):
     ax.set_title(title, fontsize=12, fontweight='bold', color='#333333', pad=2)
 
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight', transparent=True)  # 🔧 透明底 + 紧凑
+    plt.savefig(save_path, dpi=150, bbox_inches='tight', transparent=True)
     plt.close()
 
 # 直接保存图像文件
 if __name__ == '__main__':
-    container = 105
+    container = get_current_container()
     min_val = 0
     max_val = 220
     title = 'Inventory Level (Containers)'
