@@ -21,13 +21,11 @@ DATABASE_URL = (
 engine: Engine = create_engine(DATABASE_URL, echo=False)
 
 
-def query_to_dataframe(query: str, params: dict = None) -> pd.DataFrame:
-    """
-    使用 SQLAlchemy 执行 SQL 查询，并返回 Pandas DataFrame。
-    :param query: SQL 语句
-    :param params: 可选参数（字典形式）
-    :return: 查询结果 DataFrame
-    """
+def query_to_dataframe(query: str, params=None) -> pd.DataFrame:
+    from collections.abc import Mapping, Sequence
     with engine.connect() as connection:
+        if not (params is None or isinstance(params, (Mapping, Sequence))):
+            params = None  # 安全回退
         df = pd.read_sql_query(query, con=connection, params=params)
     return df
+
