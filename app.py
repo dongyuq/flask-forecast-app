@@ -1,4 +1,5 @@
 import time
+import pandas as pd
 from flask import Flask, render_template, jsonify,request,send_file
 from predict_script import predict_inventory
 import threading
@@ -11,12 +12,12 @@ app = Flask(__name__)
 
 # 🔒 用线程锁防止并发访问时冲突
 forecast_cache = {}
-apo_cache = None
-sales_cache = None
+apo_cache = {}
+sales_cache = {}
 lock = threading.Lock()
 
-def get_last_update_time():
-    path = "last_run.txt"
+def get_last_update_time(warehouse='NJ'):
+    path = f"last_run_{warehouse.upper()}.txt"
     if os.path.exists(path):
         with open(path, 'r') as f:
             return f.read().strip()
@@ -25,9 +26,39 @@ def get_last_update_time():
 
 @app.route('/')
 def index():
+    global sales_cache
     timestamp = int(time.time())
     last_update = get_last_update_time()
-    return render_template('index.html', timestamp=timestamp, last_update=last_update)
+
+    warehouse = request.args.get('warehouse', 'NJ')
+
+    with lock:
+        if sales_cache is None:
+            sales_cache = {}
+
+        if warehouse not in sales_cache:
+            print(f"⚠️ Sales 缓存缺失，加载 {warehouse}")
+            df_group = generate_sales_data(warehouse=warehouse)
+            sales_cache[warehouse] = df_group
+        else:
+            print(f"✅ 从缓存读取 Sales - {warehouse}")
+            df_group = sales_cache[warehouse]
+
+    months = df_group['Month'].tolist()
+    sales_values = df_group['Sales'].astype(float).round(0).tolist()
+    cost_values = df_group['Cost'].astype(float).round(0).tolist()
+    cuft_values = df_group['Total Cuft'].astype(float).round(0).tolist()
+
+    return render_template(
+        'index.html',
+        timestamp=timestamp,
+        last_update=last_update,
+        months=months,
+        sales_values=sales_values,
+        cost_values=cost_values,
+        cuft_values=cuft_values,
+        zip=zip
+    )
 
 
 
@@ -35,22 +66,26 @@ def index():
 # /predict 路由（仅展示更新部分）
 from bs4 import BeautifulSoup  # 确保安装：pip install beautifulsoup4
 @app.route('/predict')
+@app.route('/predict')
 def predict():
     days = int(request.args.get('days', 30))
+    warehouse = request.args.get('warehouse', 'NJ')
 
     with lock:
-        if days in forecast_cache:
-            print(f"✅ 从内存缓存读取 {days} 天预测结果")
-            df = forecast_cache[days]
+        cache_key = (days, warehouse)
+        if cache_key in forecast_cache:
+            print(f"✅ 从缓存读取 {days} 天预测 - 仓库：{warehouse}")
+            result = forecast_cache[cache_key]
         else:
-            print(f"⏳ 正在计算 {days} 天预测结果")
-            df = predict_inventory(days=days)
-            forecast_cache[days] = df
+            print(f"⏳ 正在计算 {days} 天预测 - 仓库：{warehouse}")
+            result = predict_inventory(days=days, warehouse=warehouse)
+            forecast_cache[cache_key] = result
 
-    # 添加列名
-    df.columns = ['Date', 'container', 'lower bound', 'upper bound', 'Sales Prediction', 'Cost Prediction']
+    df = result['forecast_df']
+    monthly = result['monthly_summary']
 
-    # ✅ 渲染表格
+    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast', 'Cuft Forecast']
+
     table_html = df.to_html(
         index=False,
         classes='table table-bordered table-hover table-sm text-center',
@@ -62,59 +97,58 @@ def predict():
         '<thead style="position: sticky; top: 0; background-color: #fff; z-index: 1;">'
     )
 
-    # ✅ 日志调试
-    print("🔁 返回 HTML 表格预览：", table_html[:100])
-
     return jsonify({
-        'table_html': table_html
+        'table_html': table_html,
+        'monthly_summary': monthly
     })
+
+
 
 
 @app.route('/download')
 def download():
-    import io
-    from flask import send_file
-    import pandas as pd
-
     days = int(request.args.get('days', 30))
-    df = forecast_cache.get(days)
+    warehouse = request.args.get('warehouse', 'NJ')
+    cache_key = (days, warehouse)
 
+    df = forecast_cache.get(cache_key)
     if df is None:
-        from predict_script import predict_inventory
-        df = predict_inventory(days)
-        forecast_cache[days] = df
+        df = predict_inventory(days=days, warehouse=warehouse)
+        forecast_cache[cache_key] = df
 
-    df.columns = ['Date', 'container', 'lower bound', 'upper bound', 'Sales Prediction', 'Cost Prediction']
+    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast','Cuft Forecast']
 
-    # 写入内存中的 Excel 文件
     output = io.BytesIO()
     with pd.ExcelWriter(output) as writer:
         df.to_excel(writer, index=False, sheet_name='Forecast')
-
     output.seek(0)
 
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name=f'forecast_{days}_days_NJ.xlsx'
+        download_name=f'forecast_{days}_days_{warehouse}.xlsx'
     )
+
 
 
 @app.route('/apo')
 def apo():
     global apo_cache
+    warehouse = request.args.get('warehouse', 'NJ')
+
     with lock:
         if apo_cache is None:
-            print("⚠️ APO 内存无缓存，改为读取 SQL 数据")
-            from daily_refresh import generate_apo_data
-            apo_cache = generate_apo_data()
-            apo_df = apo_cache  # ✅ 放进 if 里面
-        else:
-            print("✅ 从内存读取 APO 数据")
-            apo_df = apo_cache  # ✅ 放进 else 里面
+            apo_cache = {}
 
-    # 渲染页面
+        if warehouse not in apo_cache:
+            print(f"⚠️ APO 缓存缺失，加载 {warehouse}")
+            apo_df = generate_apo_data(warehouse=warehouse)
+            apo_cache[warehouse] = apo_df
+        else:
+            print(f"✅ 从缓存读取 APO - {warehouse}")
+            apo_df = apo_cache[warehouse]
+
     dates = apo_df['Date'].dt.strftime('%Y-%m-%d').tolist()
     values = apo_df['APO'].tolist()
 
@@ -131,20 +165,35 @@ def apo():
         values=values
     )
 
+
 @app.route('/sales')
 def sales():
     global sales_cache
+    warehouse = request.args.get('warehouse', 'NJ')
+
     with lock:
         if sales_cache is None:
-            print("⚠️ Sales 内存无缓存，改为读取 SQL 数据")
-            from daily_refresh import generate_sales_data
-            sales_cache = generate_sales_data()
-            df_group = sales_cache  # ✅ 写进 if
-        else:
-            print("✅ 从内存读取 Sales 数据")
-            df_group = sales_cache  # ✅ 写进 else
+            sales_cache = {}
 
-    # 前端展示
+        if warehouse not in sales_cache:
+            print(f"⚠️ Sales 缓存缺失，加载 {warehouse}")
+            df_group = generate_sales_data(warehouse=warehouse)
+            sales_cache[warehouse] = df_group
+        else:
+            print(f"✅ 从缓存读取 Sales - {warehouse}")
+            df_group = sales_cache[warehouse]
+
+    if df_group is None or df_group.empty:
+        return render_template(
+            'sales.html',
+            months=[],
+            sales_values=[],
+            cost_values=[],
+            cuft_values=[],
+            table_html='',
+            zip=zip
+        )
+
     months = df_group['Month'].tolist()
     sales_values = df_group['Sales'].astype(float).round(0).tolist()
     cost_values = df_group['Cost'].astype(float).round(0).tolist()
@@ -153,7 +202,8 @@ def sales():
     table_html = df_group.to_html(
         index=False,
         classes='table table-bordered table-hover table-sm text-center',
-        justify='center'
+        justify='center',
+        table_id='salesTable'  #可排序
     )
 
     return render_template(
@@ -165,6 +215,7 @@ def sales():
         table_html=table_html,
         zip=zip
     )
+
 
 
 
@@ -187,8 +238,8 @@ def dynamic_gauge():
 
 
 
-def has_run_today():
-    path = "last_run.txt"
+def has_run_today(warehouse='NJ'):
+    path = f"last_run_{warehouse.upper()}.txt"
     if os.path.exists(path):
         with open(path, 'r') as f:
             last_run = f.read().strip()
@@ -196,31 +247,48 @@ def has_run_today():
         return last_date == datetime.datetime.now().strftime("%Y-%m-%d")
     return False
 
-def mark_run_today():
-    with open("last_run.txt", 'w') as f:
-        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+def mark_run_today(warehouse='NJ'):
+    path = f"last_run_{warehouse.upper()}.txt"
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    with open(path, 'w') as f:
         f.write(now_str)
 
-def run_daily_refresh_with_data():
+
+def run_daily_refresh_with_data(warehouse='NJ'):
     global apo_cache, sales_cache
-    run_daily_refresh()
-    apo_cache = generate_apo_data()
-    sales_cache = generate_sales_data()
+
+    if apo_cache is None:
+        apo_cache = {}
+    if sales_cache is None:
+        sales_cache = {}
+
+    run_daily_refresh(warehouse)
+
+    apo_cache[warehouse] = generate_apo_data(warehouse)
+    sales_cache[warehouse] = generate_sales_data(warehouse)
+
 
 @app.route('/daily-refresh')
 def daily_refresh():
     now = datetime.datetime.now()
     force = request.args.get('force') == '1'
+    warehouse = request.args.get('warehouse', 'NJ').upper()
 
-    if (3 <= now.hour < 4 and not has_run_today()) or force:
-        run_daily_refresh_with_data()
-        mark_run_today()
-        return '✅ 已训练（强制运行）' if force else '✅ 已训练'
+    if (3 <= now.hour < 4 and not has_run_today(warehouse)) or force:
+        print(f"🚀 开始训练：仓库={warehouse}，force={force}")
+        run_daily_refresh_with_data(warehouse)
+
+        # ✅ 不管是不是 force，只要训练了就记录时间
+        mark_run_today(warehouse)
+
+        return f'✅ 已训练（仓库：{warehouse}，强制：{force}）'
     else:
-        return '✅ 今天已训练过 或 尚未到时间'
+        return f'✅ 仓库：{warehouse} 今天已训练过 或 尚未到时间（force={force}）'
+
+
 
 if __name__ == '__main__':
     import os
 
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=True)

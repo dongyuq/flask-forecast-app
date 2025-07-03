@@ -1,12 +1,15 @@
 from db_utils import query_to_dataframe  # 顶部导入
-def load_sql(file_name):
+def load_sql(file_name, warehouse='NJ'):
     import os
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    sql_path = os.path.join(base_dir, 'sql', file_name)
-    with open(sql_path, 'r', encoding='utf-8') as f:
+    wh = warehouse.lower()
+    file_core = file_name.lower().replace('.sql', '')
+    full_path = os.path.join(base_dir, 'sql', f"{file_core}_{wh}.sql")
+    with open(full_path, 'r', encoding='utf-8') as f:
         return f.read()
 
-def predict_inventory(days=30,force=False):
+
+def predict_inventory(days=30, force=False, warehouse='NJ'):
     import os
     import pandas as pd
     import pickle
@@ -19,12 +22,12 @@ def predict_inventory(days=30,force=False):
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     # 加载主数据（Total Cuft / Sales / Cost）
-    sql_cuft = load_sql('daily_cuft_sales_cost.sql')
+    sql_cuft = load_sql('daily_cuft_sales_cost.sql', warehouse)
     df = query_to_dataframe(sql_cuft)
     df['Invoice Date'] = pd.to_datetime(df['Invoice Date'])
 
     # 加载 APO 数据
-    sql_apo = load_sql('daily_apo.sql')
+    sql_apo = load_sql('daily_apo.sql', warehouse)
     incoming_df = query_to_dataframe(sql_apo)
     incoming_df['Date'] = pd.to_datetime(incoming_df['Date'])
 
@@ -48,11 +51,11 @@ def predict_inventory(days=30,force=False):
     y_cuft = daily_df['Total Cuft']
 
     # 加载模型
-    with open(os.path.join(base_dir, 'rf_model_cuft.pkl'), 'rb') as f:
+    with open(os.path.join(base_dir, f'rf_model_cuft_{warehouse}.pkl'), 'rb') as f:
         rf_cuft = pickle.load(f)
-    with open(os.path.join(base_dir, 'rf_model_sales.pkl'), 'rb') as f:
+    with open(os.path.join(base_dir, f'rf_model_sales_{warehouse}.pkl'), 'rb') as f:
         rf_sales = pickle.load(f)
-    with open(os.path.join(base_dir, 'rf_model_cost.pkl'), 'rb') as f:
+    with open(os.path.join(base_dir, f'rf_model_cost_{warehouse}.pkl'), 'rb') as f:
         rf_cost = pickle.load(f)
 
     y_pred = rf_cuft.predict(X)
@@ -123,12 +126,35 @@ def predict_inventory(days=30,force=False):
     future_df['upper_bound'] = future_df['container'] + z_score * container_std
 
     future_df[['container', 'lower_bound', 'upper_bound']] = future_df[['container', 'lower_bound', 'upper_bound']].round(2)
-    future_df[['Sales Prediction', 'Cost Prediction']] = future_df[['Sales Prediction', 'Cost Prediction']].round(0).astype(int)
+    future_df[['Sales Prediction', 'Cost Prediction', 'Total Cuft Prediction']] = \
+        future_df[['Sales Prediction', 'Cost Prediction', 'Total Cuft Prediction']].round(0).astype(int)
     static_dir = os.path.join(base_dir, 'static')
 
+    # 当前时间 & 月份范围
+    today = pd.Timestamp.today().normalize()
+    month_start = today.replace(day=1)
+    month_end = (month_start + pd.offsets.MonthEnd(0))  # 当前月最后一天
+
+    # 📌 Step 1: 真实数据部分（来自 df）
+    df['Invoice Date'] = pd.to_datetime(df['Invoice Date'])
+    real_df = df[(df['Invoice Date'] >= month_start) & (df['Invoice Date'] <= today)]
+    real_grouped = real_df.groupby('Invoice Date').agg({
+        'Sales': 'sum',
+        'Cost': 'sum',
+        'Total Cuft': 'sum'
+    }).reset_index()
+
+    # 📌 Step 2: 预测数据部分（来自 future_df）
+    future_part = future_df[(future_df['Date'] > today) & (future_df['Date'] <= month_end)]
+
+    # 📌 Step 3: 合并
+    monthly_sales = int(real_grouped['Sales'].sum() + future_part['Sales Prediction'].sum())
+    monthly_cost = int(real_grouped['Cost'].sum() + future_part['Cost Prediction'].sum())
+    monthly_cuft = int(real_grouped['Total Cuft'].sum() + future_part['Total Cuft Prediction'].sum())
+
     # 图表文件按天数命名，避免重复生成
-    container_chart_path = os.path.join(static_dir, f'forecast/container_forecast_{days}_NJ.html')
-    sales_cost_chart_path = os.path.join(static_dir, f'forecast/sales_cost_forecast_{days}_NJ.html')
+    container_chart_path = os.path.join(static_dir, f'forecast/container_forecast_{days}_{warehouse}.html')
+    sales_cost_chart_path = os.path.join(static_dir, f'forecast/sales_cost_forecast_{days}_{warehouse}.html')
 
     if force or not os.path.exists(container_chart_path):
         print(f"📈 生成 container_forecast_{days}_NJ.html")
@@ -202,5 +228,15 @@ def predict_inventory(days=30,force=False):
         print("✅ 模型文件路径：", os.path.join(base_dir, 'rf_model_cuft.pkl'))
         print("✅ 数据文件是否存在：", os.path.exists(base_dir))
         print("✅ 模型是否存在：", os.path.exists(os.path.join(base_dir, 'rf_model_cuft.pkl')))
+        print(f"预测结果 dataframe 行数：{len(df)}")
+    return {
+        'forecast_df': future_df[
+            ['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction',
+             'Total Cuft Prediction']],
+        'monthly_summary': {
+            'sales': monthly_sales,
+            'cost': monthly_cost,
+            'cuft': monthly_cuft
+        }
+    }
 
-    return future_df[['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction']]

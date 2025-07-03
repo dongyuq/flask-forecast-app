@@ -42,9 +42,14 @@
     if (whSelect) {
       whSelect.value = localStorage.getItem('selectedWH') || 'NJ';
       whSelect.addEventListener('change', () => {
-        localStorage.setItem('selectedWH', whSelect.value);
-        location.reload();
+        const selectedWH = whSelect.value;
+        localStorage.setItem('selectedWH', selectedWH);
+
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('warehouse', selectedWH);
+        window.location.href = newUrl.toString();  // ✅ 替代 reload
       });
     }
   });
 </script>
+
