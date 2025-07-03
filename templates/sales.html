@@ -112,51 +112,69 @@
     <h1 class="display-5">Actual Sales Summary</h1>
   </div>
 
+
    <!-- 🔷 本月销售汇总卡片 -->
-  <div class="container mt-2 mb-0">
-  <div class="card shadow rounded-4 border-0 mx-auto" style="max-width: 1600px;">
-    <div class="card-body py-2 px-1">
-      <div class="row text-center small justify-content-center">
+   <div class="container mt-2 mb-0">
+  <div class="row align-items-center flex-nowrap g-1">
 
-        <div class="col-2">
-  <div class="fw-bold" style="font-size: 1.1rem; color: #007bff;">{{ month_name }} Sales</div>
-  <div class="fw-semibold" style="font-size: 1.1rem; color: #007bff;">
-    ${{ '{:,.0f}'.format(monthly_sales) }}
-  </div>
-</div>
-<div class="col-2">
-  <div class="fw-bold" style="font-size: 1.1rem; color: #d49105;">{{ month_name }} Cost</div>
-  <div class="fw-semibold" style="font-size: 1.1rem; color: #d49105;">
-    ${{ '{:,.0f}'.format(monthly_cost) }}
-  </div>
-</div>
+    <!-- ⏱️ 更新时间 -->
+    <div class="col-auto text-muted small fw-semibold" style="margin-left: 2px;">
+      ⏱️ Last update:<br> {{ last_update }}
+    </div>
 
-      <div class="col-2">
-        <div class="fw-bold" style="font-size: 1.1rem; color: #34495e;">{{ month_name }} Margin</div>
-        <div class="fw-semibold" style="font-size: 1.1rem; color: #34495e;">
-          {{ '{:.1f}'.format(monthly_margin) }}%
-        </div>
-      </div>
-        <div class="col-2">
-            <div class="fw-bold" style="font-size: 1.1rem; color: #c2185b;">{{ month_name }} Containers Sold</div>
-            <div class="fw-semibold" style="font-size: 1.1rem; color: #c2185b;">
-              {{ '{:.0f}'.format(monthly_containers) }}
+    <!-- 📦 销售信息卡片 -->
+    <div class="col">
+      <div class="card shadow rounded-4 border-0 w-100">
+        <div class="card-body py-2 px-1">
+          <div class="d-flex justify-content-around flex-nowrap text-center small">
+
+            <div class="px-3">
+              <div class="fw-bold" style="font-size: 1.1rem; color: #007bff;">{{ month_name }} Sales</div>
+              <div class="fw-semibold" style="font-size: 1.1rem; color: #007bff;">
+                ${{ '{:,.0f}'.format(monthly_sales) }}
+              </div>
             </div>
+
+            <div class="px-3">
+              <div class="fw-bold" style="font-size: 1.1rem; color: #d49105;">{{ month_name }} Cost</div>
+              <div class="fw-semibold" style="font-size: 1.1rem; color: #d49105;">
+                ${{ '{:,.0f}'.format(monthly_cost) }}
+              </div>
+            </div>
+
+            <div class="px-3">
+              <div class="fw-bold" style="font-size: 1.1rem; color: #34495e;">{{ month_name }} Margin</div>
+              <div class="fw-semibold" style="font-size: 1.1rem; color: #34495e;">
+                {{ '{:.1f}'.format(monthly_margin) }}%
+              </div>
+            </div>
+
+            <div class="px-3">
+              <div class="fw-bold" style="font-size: 1.1rem; color: #c2185b;">{{ month_name }} Containers Sold</div>
+              <div class="fw-semibold" style="font-size: 1.1rem; color: #c2185b;">
+                {{ '{:.0f}'.format(monthly_containers) }}
+              </div>
+            </div>
+
+            <div class="px-3">
+              <div class="fw-bold" style="font-size: 1.1rem; color: #28a745;">{{ month_name }} Cuft</div>
+              <div class="fw-semibold" style="font-size: 1.1rem; color: #28a745;">
+                {{ '{:.0f}'.format(monthly_cuft) }}
+              </div>
+            </div>
+
           </div>
-      <div class="col-2">
-        <div class="fw-bold" style="font-size: 1.1rem; color: #28a745;">{{ month_name }} Cuft</div>
-        <div class="fw-semibold" style="font-size: 1.1rem; color: #28a745;">
-          {{ '{:.0f}'.format(monthly_cuft) }}
         </div>
-      </div>
-
-
-
-
       </div>
     </div>
+
   </div>
 </div>
+
+
+
+
+
 
 
 

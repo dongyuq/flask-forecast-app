@@ -167,6 +167,8 @@ def sales():
     global sales_cache
     warehouse = request.args.get('warehouse', 'NJ')
 
+    last_update = get_last_update_time(warehouse)
+
     with lock:
         if sales_cache is None:
             sales_cache = {}
@@ -231,7 +233,8 @@ def sales():
         monthly_margin=monthly_margin,
         month_name=month_name,
         monthly_cuft=monthly_cuft,
-        monthly_containers = monthly_containers
+        monthly_containers = monthly_containers,
+        last_update  = last_update
     )
 
 
