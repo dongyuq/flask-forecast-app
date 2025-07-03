@@ -242,7 +242,7 @@ def has_run_today(warehouse='NJ'):
 
 def mark_run_today(warehouse='NJ'):
     path = f"last_run_{warehouse.upper()}.txt"
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     with open(path, 'w') as f:
         f.write(now_str)
 
