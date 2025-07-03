@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge
 import numpy as np
 import os
-
-# 文件：gauge_utils.py 或 utils.py
 from db_utils import query_to_dataframe
 
 def get_current_container(warehouse: str = 'NJ'):
@@ -33,6 +31,7 @@ def plot_half_gauge(value, min_val, max_val, title, save_path):
     ax.axis('equal')
 
     ax.set_facecolor('#f8f9fa')  # 🔧 和页面一致的灰白底色
+
     ax.set_xlim(-1.2, 1.2)
     ax.set_ylim(-0.2, 1.2)
 
@@ -73,8 +72,11 @@ def plot_half_gauge(value, min_val, max_val, title, save_path):
 
     ax.set_title(title, fontsize=12, fontweight='bold', color='#333333', pad=2)
 
+    fig.patch.set_facecolor('#eef2f7')
+    ax.set_facecolor('#eef2f7')
+
     plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight', transparent=True)
+    plt.savefig(save_path, dpi=150, bbox_inches='tight', transparent=False)
     plt.close()
 
 # 直接保存图像文件

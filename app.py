@@ -223,7 +223,7 @@ def dynamic_gauge():
 
     min_val = 0
     max_val = 220
-    title = 'Inventory Level (Containers)'
+    title = 'Current Inventory Level (Containers)'
 
     # ✅ 用内存 buffer，而不是保存为文件
     buf = io.BytesIO()
@@ -274,7 +274,11 @@ def daily_refresh():
     if (3 <= now.hour < 4 and not has_run_today(warehouse)) or force:
         print(f"🚀 Starting training: warehouse={warehouse}, force={force}, PST time={now}")
         run_daily_refresh_with_data(warehouse)
+        container = get_current_container(warehouse)
+        plot_half_gauge(container, 0, 220, 'Inventory Level (Containers)', f'static/gauge_{warehouse}.png')
+
         mark_run_today(warehouse)
+
         return jsonify({
             'message': f'✅ Trained (Warehouse: {warehouse}, Forced: {force})',
             'last_update': now.strftime('%Y-%m-%d %H:%M')

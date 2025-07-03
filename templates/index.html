@@ -90,7 +90,7 @@
         </div>
         <div class="col-md-4 text-end">
           <div class="gauge-container">
-            <img id="gaugeImage" src="/static/gauge.png?warehouse=NJ&v={{ timestamp }}" alt="Gauge Chart" class="img-fluid rounded">
+            <img id="gaugeImg" src="/static/gauge_NJ.png" style="width: 300px;" />
           </div>
         </div>
       </div>
@@ -242,8 +242,9 @@ if (!window.location.search.includes('warehouse=')) {
 
     generateForecast();  // 页面加载后首次调用
   });
+
   //刷新按钮
-   function forceRefresh() {
+  function forceRefresh() {
   const warehouse = localStorage.getItem('selectedWH') || 'NJ';
 
   document.getElementById('loadingSpinner').style.display = 'block';
@@ -253,14 +254,21 @@ if (!window.location.search.includes('warehouse=')) {
     .then(response => response.json())
     .then(data => {
       alert(data.message);  // 可以替换为 toast
+
       // ✅ 更新 last update 文本
       document.querySelector('#lastUpdateText').innerText = `Last update: ${data.last_update}`;
-      generateForecast();
+
+      // ✅ 更新 Gauge 图的 src，加时间戳防止缓存
+      const ts = Date.now();
+      document.getElementById('gaugeImg').src = `/static/gauge_${warehouse}.png?v=${ts}`;
+
+      generateForecast();  // 生成新的 forecast 表格
     })
     .finally(() => {
       document.getElementById('loadingSpinner').style.display = 'none';
     });
 }
+
   //切换仓库时inventory图
   function updateGaugeImage(warehouse) {
   const gaugeImg = document.getElementById('gaugeImage');
