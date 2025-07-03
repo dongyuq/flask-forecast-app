@@ -90,7 +90,7 @@
         </div>
         <div class="col-md-4 text-end">
           <div class="gauge-container">
-            <img src="/static/gauge.png?v={{ timestamp }}" alt="Gauge Chart" class="img-fluid rounded">
+            <img id="gaugeImage" src="/static/gauge.png?warehouse=NJ&v={{ timestamp }}" alt="Gauge Chart" class="img-fluid rounded">
           </div>
         </div>
       </div>
@@ -260,6 +260,12 @@ if (!window.location.search.includes('warehouse=')) {
     .finally(() => {
       document.getElementById('loadingSpinner').style.display = 'none';
     });
+}
+  //切换仓库时inventory图
+  function updateGaugeImage(warehouse) {
+  const gaugeImg = document.getElementById('gaugeImage');
+  const timestamp = Date.now();
+  gaugeImg.src = `/static/gauge.png?warehouse=${warehouse}&v=${timestamp}`;
 }
 
 

@@ -9,14 +9,24 @@ import os
 # 文件：gauge_utils.py 或 utils.py
 from db_utils import query_to_dataframe
 
-def get_current_container():
-    sql = """
-    SELECT total / 2350 AS container FROM bi.v_inventory_total;
-    """
+def get_current_container(warehouse: str = 'NJ'):
+    if warehouse == 'NJ':
+        sql = """
+        SELECT total / 2350 AS container FROM bi.v_inventory_total;
+        """
+    elif warehouse == 'HMLG':
+        # 未来支持 HMLG 时，替换为正确的 SQL 或视图
+        sql = """
+        SELECT total / 2350 AS container FROM bi.v_inventory_total;
+        """
+    else:
+        raise ValueError(f"Unsupported warehouse: {warehouse}")
+
     df = query_to_dataframe(sql)
     if df.empty:
         return 0
     return round(df.iloc[0]['container'], 2)
+
 
 def plot_half_gauge(value, min_val, max_val, title, save_path):
     fig, ax = plt.subplots(figsize=(4, 2.2))  # 🔧 适配你网页的比例

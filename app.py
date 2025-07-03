@@ -218,7 +218,9 @@ def sales():
 
 @app.route('/static/gauge.png')
 def dynamic_gauge():
-    container = get_current_container()
+    warehouse = request.args.get('warehouse', 'NJ').upper()
+    container = get_current_container(warehouse)  # ✅ 加入仓库判断
+
     min_val = 0
     max_val = 220
     title = 'Inventory Level (Containers)'
