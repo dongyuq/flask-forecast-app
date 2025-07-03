@@ -50,8 +50,8 @@
 
     .table-card {
       margin: 1rem auto 2rem;
-      max-width: 1600px;
-      width: 90%;
+      max-width: 2000px;  /* ← 限制最大宽度 */
+      width: 95%;
     }
     .table-card .card-header {
       background-color: #f1f1f1;
@@ -194,7 +194,7 @@
 
   <!-- 表格 -->
   <div class="card table-card">
-    <div class="card-header">Monthly Sales Data</div>
+    <div class="card-header">Actual Monthly Sales Data</div>
     <div class="card-body table-responsive">
       {{ table_html | safe }}
     </div>
@@ -326,20 +326,22 @@ $(document).ready(function () {
           }
           return data;
         },
-        width: '130px'
+        width: '110px'
       },
-      {
+
+        {
         targets: 4,  // Total Cuft
         render: function (data, type, row) {
           if (type === 'display') {
-            return parseInt(data).toLocaleString();
+            return Math.round(Number(data)).toLocaleString();  // 保留整数并加千分位
           }
           return data;
         },
-        width: '140px'
+        width: '120px'
       },
+
       {
-        targets: [3, 4, 5, 6, 7, 8, 9, 10],  // 所有 % 列
+        targets: [3, 4, 6, 7, 8, 9, 10, 11],  // 所有 % 列
         width: '140px',
         className: 'text-center'
       },

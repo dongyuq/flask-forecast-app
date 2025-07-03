@@ -50,6 +50,14 @@ def generate_sales_data(warehouse='NJ'):
         'Total Cuft': 'sum'
     }).reset_index()
 
+    # ➕ 添加 Containers 列 = Total Cuft / 2350，保留一位小数
+    df_group['Containers'] = (df_group['Total Cuft'] / 2350).round(1)
+
+    # 👉 把 Containers 插入到 Total Cuft 之后
+    cuft_index = df_group.columns.get_loc('Total Cuft')
+    containers_col = df_group.pop('Containers')
+    df_group.insert(cuft_index + 1, 'Containers', containers_col)
+
     # ➕ 添加 Margin 列
     df_group['Margin'] = ((df_group['Sales'] - df_group['Cost']) / df_group['Cost']).round(4) * 100
     df_group['Margin'] = df_group['Margin'].map(lambda x: f"{x:.1f}%" if pd.notnull(x) else "")
