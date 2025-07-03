@@ -5,7 +5,7 @@ from predict_script import predict_inventory
 import threading
 from gauge_plot import get_current_container, plot_half_gauge
 from daily_refresh import run_daily_refresh, generate_apo_data, generate_sales_data
-import datetime
+from datetime import datetime
 from zoneinfo import ZoneInfo
 import io
 
