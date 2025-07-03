@@ -178,6 +178,22 @@ def sales():
         else:
             print(f"✅ 从缓存读取 Sales - {warehouse}")
             df_group = sales_cache[warehouse]
+    # 🔹 提取最后一行的 Sales / Cost / Margin %
+    last_row = df_group.iloc[-1]
+    monthly_sales = float(last_row['Sales'])
+    monthly_cost = float(last_row['Cost'])
+    monthly_cuft = float(last_row['Total Cuft'])
+    monthly_containers = round(last_row['Total Cuft']/2350,2)
+
+    # 处理 Margin % 字段：去掉 % 并转 float
+    margin_raw = last_row['Margin %']
+    if isinstance(margin_raw, str) and margin_raw.endswith('%'):
+        monthly_margin = float(margin_raw.strip('%'))
+    else:
+        monthly_margin = float(margin_raw)
+    # 提取月份名称
+    month_str = last_row['Month']  # e.g., '2025-07'
+    month_name = datetime.strptime(month_str, '%Y-%m').strftime('%B')  # 'July'
 
     if df_group is None or df_group.empty:
         return render_template(
@@ -209,11 +225,14 @@ def sales():
         cost_values=cost_values,
         cuft_values=cuft_values,
         table_html=table_html,
-        zip=zip
+        zip=zip,
+        monthly_sales=monthly_sales,
+        monthly_cost=monthly_cost,
+        monthly_margin=monthly_margin,
+        month_name=month_name,
+        monthly_cuft=monthly_cuft,
+        monthly_containers = monthly_containers
     )
-
-
-
 
 
 @app.route('/static/gauge.png')
