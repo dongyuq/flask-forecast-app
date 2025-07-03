@@ -6,6 +6,7 @@ import threading
 from gauge_plot import get_current_container, plot_half_gauge
 from daily_refresh import run_daily_refresh, generate_apo_data, generate_sales_data
 import datetime
+from zoneinfo import ZoneInfo
 import io
 
 app = Flask(__name__)
@@ -62,10 +63,7 @@ def index():
 
 
 
-
-# /predict 路由（仅展示更新部分）
-from bs4 import BeautifulSoup  # 确保安装：pip install beautifulsoup4
-@app.route('/predict')
+from bs4 import BeautifulSoup
 @app.route('/predict')
 def predict():
     days = int(request.args.get('days', 30))
@@ -83,7 +81,7 @@ def predict():
 
     df = result['forecast_df']
     monthly = result['monthly_summary']
-
+    df['Date'] = df['Date'].astype(str).str[:10]  # 只保留年月日
     df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast', 'Cuft Forecast']
 
     table_html = df.to_html(
@@ -101,8 +99,6 @@ def predict():
         'table_html': table_html,
         'monthly_summary': monthly
     })
-
-
 
 
 @app.route('/download')
@@ -234,9 +230,6 @@ def dynamic_gauge():
 
     return send_file(buf, mimetype='image/png')
 
-# app.py 中添加
-
-
 
 def has_run_today(warehouse='NJ'):
     path = f"last_run_{warehouse.upper()}.txt"
@@ -268,22 +261,27 @@ def run_daily_refresh_with_data(warehouse='NJ'):
     sales_cache[warehouse] = generate_sales_data(warehouse)
 
 
+from flask import jsonify
+
 @app.route('/daily-refresh')
 def daily_refresh():
-    now = datetime.datetime.now()
+    now = datetime.now(ZoneInfo('America/Los_Angeles'))  # PST / PDT 自动切换
     force = request.args.get('force') == '1'
     warehouse = request.args.get('warehouse', 'NJ').upper()
 
     if (3 <= now.hour < 4 and not has_run_today(warehouse)) or force:
-        print(f"🚀 开始训练：仓库={warehouse}，force={force}")
+        print(f"🚀 Starting training: warehouse={warehouse}, force={force}, PST time={now}")
         run_daily_refresh_with_data(warehouse)
-
-        # ✅ 不管是不是 force，只要训练了就记录时间
         mark_run_today(warehouse)
-
-        return f'✅ 已训练（仓库：{warehouse}，强制：{force}）'
+        return jsonify({
+            'message': f'✅ Trained (Warehouse: {warehouse}, Forced: {force})',
+            'last_update': now.strftime('%Y-%m-%d %H:%M')
+        })
     else:
-        return f'✅ 仓库：{warehouse} 今天已训练过 或 尚未到时间（force={force}）'
+        return jsonify({
+            'message': f'✅ Warehouse: {warehouse} has already been trained today or it\'s not the scheduled PST time (force={force})',
+            'last_update': now.strftime('%Y-%m-%d %H:%M')
+        })
 
 
 

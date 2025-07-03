@@ -10,8 +10,6 @@ def run_daily_refresh(warehouse):
         predict_inventory(warehouse=warehouse, days=days, force=True)
     print(f"✅ 每日任务完成：{warehouse}")
 
-# daily_refresh.py
-
 from db_utils import query_to_dataframe
 import pandas as pd
 import os

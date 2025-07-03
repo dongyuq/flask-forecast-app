@@ -21,7 +21,7 @@
       top: 0;
       z-index: 10;
       background-color: #f8f9fa;
-      padding: 0.2rem 0;
+      padding: 0.05rem 0;
     }
     .gauge-container {
       width: 300px;
@@ -73,7 +73,10 @@
           <p>Select how many days to forecast:</p>
           <div class="forecast-controls d-flex justify-content-center align-items-center">
             <div class="me-3 text-muted" style="white-space: nowrap; font-size: 0.9rem;">
-              <span style="color: #555; font-weight: 500;">
+              <button class="btn btn-sm btn-outline-primary me-2 fw-semibold" onclick="forceRefresh()" style="font-size: 0.85rem; padding: 0.25rem 0.75rem;">
+                  🔄 Refresh
+                </button>
+              <span id="lastUpdateText" style="color: #555; font-weight: 500;">
                 ⏱️ Last update: {{ last_update }}
               </span>
             </div>
@@ -103,7 +106,10 @@
       <div class="d-flex justify-content-between align-items-center mb-0">
 
         <div id="monthlyForecast" class="text-start text-secondary small mb-2 ms-1"></div>
-        <h5 class="mb-2 mt-4" style="font-weight: bold; font-size: 18px;">📊 Forecast Chart</h5>
+        <div style="margin-left: -15rem;">
+          <h5 class="mb-2 mt-2" style="font-weight: bold; font-size: 18px;">📊 Forecast Chart</h5>
+        </div>
+
         <div class="text-end">
           <div class="btn-group" role="group">
             <button id="btnContainer" class="btn btn-primary text-white">Show Container</button>
@@ -118,7 +124,7 @@
 
       <div class="card shadow-sm rounded p-3 mb-0" style="max-height: 600px; overflow-y: auto;">
         <div class="d-flex justify-content-between align-items-center sticky-top bg-white py-2 mb-1" style="top: 0; z-index: 1;">
-          <h5 class="mb-2 mt-4" style="font-weight: bold; font-size: 18px;">📋 Forecast Data</h5>
+          <h5 class="mb-2 mt-0" style="font-weight: bold; font-size: 18px;">📋 Forecast Data</h5>
           <a id="downloadBtn" class="btn btn-sm btn-outline-primary" href="#">⬇️ Download</a>
         </div>
         <div class="table-responsive">
@@ -183,7 +189,7 @@ if (!window.location.search.includes('warehouse=')) {
                     💰 Sales: <strong>$${summary.sales.toLocaleString()}</strong> |
                     💸 Cost: <strong>$${summary.cost.toLocaleString()}</strong> |
                     📦 Cuft: <strong>${summary.cuft.toLocaleString()}</strong> |
-                    🚛 Container: <strong>${Math.round(summary.cuft / 2350).toLocaleString()}</strong>
+                    🚛 Estimated Containers Sold : <strong>${Math.round(summary.cuft / 2350).toLocaleString()}</strong>
                 `;
             }
 
@@ -236,6 +242,28 @@ if (!window.location.search.includes('warehouse=')) {
 
     generateForecast();  // 页面加载后首次调用
   });
+  //刷新按钮
+   function forceRefresh() {
+  const warehouse = localStorage.getItem('selectedWH') || 'NJ';
+
+  document.getElementById('loadingSpinner').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+
+  fetch(`/daily-refresh?force=1&warehouse=${warehouse}`)
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);  // 可以替换为 toast
+      // ✅ 更新 last update 文本
+      document.querySelector('#lastUpdateText').innerText = `Last update: ${data.last_update}`;
+      generateForecast();
+    })
+    .finally(() => {
+      document.getElementById('loadingSpinner').style.display = 'none';
+    });
+}
+
+
+
 </script>
 
 

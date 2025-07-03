@@ -156,6 +156,18 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
     container_chart_path = os.path.join(static_dir, f'forecast/container_forecast_{days}_{warehouse}.html')
     sales_cost_chart_path = os.path.join(static_dir, f'forecast/sales_cost_forecast_{days}_{warehouse}.html')
 
+    # 添加 Total 行到 forecast_df 的底部
+    total_row = {
+        'Date': 'Total',
+        'container': '',
+        'lower_bound': '',
+        'upper_bound': '',
+        'Sales Prediction': int(future_df['Sales Prediction'].sum()),
+        'Cost Prediction': int(future_df['Cost Prediction'].sum()),
+        'Total Cuft Prediction': int(future_df['Total Cuft Prediction'].sum())
+    }
+    forecast_with_total = pd.concat([future_df, pd.DataFrame([total_row])], ignore_index=True)
+
     if force or not os.path.exists(container_chart_path):
         print(f"📈 生成 container_forecast_{days}_NJ.html")
         fig1 = go.Figure()
@@ -230,9 +242,9 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
         print("✅ 模型是否存在：", os.path.exists(os.path.join(base_dir, 'rf_model_cuft.pkl')))
         print(f"预测结果 dataframe 行数：{len(df)}")
     return {
-        'forecast_df': future_df[
-            ['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction',
-             'Total Cuft Prediction']],
+        'forecast_df': forecast_with_total[
+                ['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction', 'Total Cuft Prediction']
+            ],
         'monthly_summary': {
             'sales': monthly_sales,
             'cost': monthly_cost,
