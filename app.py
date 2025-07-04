@@ -17,12 +17,20 @@ apo_cache = {}
 sales_cache = {}
 lock = threading.Lock()
 
+
 def get_last_update_time(warehouse='NJ'):
     path = f"last_run_{warehouse.upper()}.txt"
     if os.path.exists(path):
         with open(path, 'r') as f:
-            return f.read().strip()
+            raw_time = f.read().strip()
+            try:
+                naive_dt = datetime.strptime(raw_time, '%Y-%m-%d %H:%M')
+                local_dt = naive_dt.replace(tzinfo=ZoneInfo("America/Los_Angeles"))
+                return local_dt.strftime('%Y-%m-%d %H:%M %Z')  # 返回例如：2025-07-03 23:00 PDT
+            except Exception:
+                return raw_time
     return "未更新"
+
 
 
 @app.route('/')
@@ -266,10 +274,12 @@ def has_run_today(warehouse='NJ'):
     return False
 
 def mark_run_today(warehouse='NJ'):
+    from zoneinfo import ZoneInfo
     path = f"last_run_{warehouse.upper()}.txt"
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now_str = datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d %H:%M")
     with open(path, 'w') as f:
         f.write(now_str)
+
 
 
 def run_daily_refresh_with_data(warehouse='NJ'):
