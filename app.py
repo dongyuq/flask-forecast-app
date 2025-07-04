@@ -82,11 +82,12 @@ def predict():
     df = result['forecast_df']
     monthly = result['monthly_summary']
     df['Date'] = df['Date'].astype(str).str[:10]  # 只保留年月日
-    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast', 'Cuft Forecast']
+    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast', 'Cuft Forecast','Containers Forecast']
 
     table_html = df.to_html(
         index=False,
         classes='table table-bordered table-hover table-sm text-center',
+        table_id='salesTable',  # ⬅️ 这一句很关键！
         justify='center',
         border=0
     )
@@ -112,7 +113,7 @@ def download():
         df = predict_inventory(days=days, warehouse=warehouse)
         forecast_cache[cache_key] = df
 
-    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast','Cuft Forecast']
+    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast', 'Cuft Forecast', 'Containers Forecast']
 
     output = io.BytesIO()
     with pd.ExcelWriter(output) as writer:

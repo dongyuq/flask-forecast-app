@@ -104,6 +104,8 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
         cost_preds.append(cost_pred)
 
     future_df['Total Cuft Prediction'] = cuft_preds
+    future_df['Containers Forecast'] = (future_df['Total Cuft Prediction'] / 2350).round(1)
+
     future_df['Sales Prediction'] = sales_preds
     future_df['Cost Prediction'] = cost_preds
     future_df['lower'] = future_df['Total Cuft Prediction'] - z_score * residual_std
@@ -164,8 +166,10 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
         'upper_bound': '',
         'Sales Prediction': int(future_df['Sales Prediction'].sum()),
         'Cost Prediction': int(future_df['Cost Prediction'].sum()),
-        'Total Cuft Prediction': int(future_df['Total Cuft Prediction'].sum())
+        'Total Cuft Prediction': int(future_df['Total Cuft Prediction'].sum()),
+        'Containers Forecast': round(future_df['Containers Forecast'].sum(), 1)  # ✅ 新增这行
     }
+
     forecast_with_total = pd.concat([future_df, pd.DataFrame([total_row])], ignore_index=True)
 
     if force or not os.path.exists(container_chart_path):
@@ -242,9 +246,9 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
         print("✅ 模型是否存在：", os.path.exists(os.path.join(base_dir, 'rf_model_cuft.pkl')))
         print(f"预测结果 dataframe 行数：{len(df)}")
     return {
-        'forecast_df': forecast_with_total[
-                ['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction', 'Total Cuft Prediction']
-            ],
+    'forecast_df': forecast_with_total[
+        ['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction', 'Total Cuft Prediction', 'Containers Forecast']
+    ],
         'monthly_summary': {
             'sales': monthly_sales,
             'cost': monthly_cost,

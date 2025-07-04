@@ -5,6 +5,10 @@
   <title>Forecast</title>
   <link rel="icon" href="/static/favicon.png" type="image/x-icon">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+
+
   <style>
     body {
       background-color: #f8f9fa;
@@ -51,6 +55,12 @@
       margin-left: auto;
       margin-right: auto;
     }
+     #salesTable th {
+    white-space: nowrap;
+    vertical-align: middle !important;
+    padding: 0.4rem 0.6rem !important;
+    font-size: 1rem;
+  }
 
   </style>
 </head>
@@ -64,6 +74,7 @@
   {% include 'menu.html' %}
   {% include 'header.html' %}
 </div>
+
 <!-- ⬇️ 添加新的大容器包裹下面的内容，设定 85vw 宽度并居中 -->
 <div style="width: 85vw; margin: 0 auto;">
     <div class="sticky-header">
@@ -140,9 +151,19 @@
     </div>
   </div>
 
+<!-- ✅ jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- ✅ DataTables 主脚本（必须！）-->
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
+<!-- ✅ DataTables Bootstrap 5 适配（你原来只有这个）-->
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+  // 你已有的 JS 逻辑
+</script>
+
 <script>
   let days = 30;
   const warehouse = localStorage.getItem('selectedWH') || 'NJ';
@@ -194,6 +215,28 @@ if (!window.location.search.includes('warehouse=')) {
             }
 
         document.getElementById('resultTable').innerHTML = data.table_html;
+
+        // ✅ 初始化 DataTable 并设置 Containers Forecast 列宽
+        $('#salesTable').DataTable({
+          paging: false,
+          info: false,
+          searching: false,
+          fixedHeader: true,
+          autoWidth: false,
+          order: [],
+          columnDefs: [
+            {
+              targets: 7,  // Containers Forecast 假设在第 8 列（从 0 开始）
+              width: '150px',
+              className: 'text-center'
+            },
+            {
+              className: 'text-center',
+              targets: '_all'
+            }
+          ]
+        });
+
          // ✅ 对 Sales Forecast 和 Cost Forecast 添加美元符号
         const rows = document.querySelectorAll('#resultTable table tbody tr');
         rows.forEach(row => {
