@@ -1,20 +1,34 @@
 WITH date_series AS (
     SELECT d::date AS "Date"
-    FROM generate_series(current_date, current_date + INTERVAL '3 month', '1 day') d
-    WHERE EXTRACT(DOW FROM d) BETWEEN 1 AND 5  -- 周一到周五
+    FROM generate_series(
+        (now() AT TIME ZONE 'US/Pacific')::date,
+        (now() AT TIME ZONE 'US/Pacific' + INTERVAL '3 month')::date,
+        '1 day'
+    ) d
+    WHERE EXTRACT(DOW FROM d) BETWEEN 1 AND 5
 ),
 
 transformed_po AS (
     SELECT
-        CAST(
-            CASE
-                WHEN po_number LIKE 'A%' THEN a_eta
-                ELSE a_eta + INTERVAL '7 day'
-            END AS DATE
-        ) AS "Date",
+        CASE
+            WHEN EXTRACT(DOW FROM raw_date) = 6 THEN raw_date + INTERVAL '2 day'  -- 周六 → 周一
+            WHEN EXTRACT(DOW FROM raw_date) = 0 THEN raw_date + INTERVAL '1 day'  -- 周日 → 周一
+            ELSE raw_date
+        END AS "Date",
         po_number
-    FROM bi.po_eta
+    FROM (
+        SELECT
+            (
+                CASE
+                    WHEN TRIM(po_number) LIKE 'A%' THEN a_eta
+                    ELSE a_eta + INTERVAL '7 day'
+                END
+            )::DATE AS raw_date,
+            TRIM(po_number) AS po_number
+        FROM bi.po_eta
+    ) AS base
 ),
+
 
 counted_po AS (
     SELECT

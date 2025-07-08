@@ -90,7 +90,11 @@ def predict():
     df = result['forecast_df']
     monthly = result['monthly_summary']
     df['Date'] = df['Date'].astype(str).str[:10]  # 只保留年月日
-    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast', 'Cuft Forecast','Containers Forecast']
+    df = df[['Date', 'container', 'lower_bound', 'upper_bound',
+             'Sales Prediction', 'Cost Prediction', 'Total Cuft Prediction', 'Containers Forecast']]
+
+    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound',
+                  'Sales Forecast', 'Cost Forecast', 'Cuft Forecast', 'Containers Forecast']
 
     table_html = df.to_html(
         index=False,
@@ -116,12 +120,17 @@ def download():
     warehouse = request.args.get('warehouse', 'NJ')
     cache_key = (days, warehouse)
 
-    df = forecast_cache.get(cache_key)
-    if df is None:
-        df = predict_inventory(days=days, warehouse=warehouse)
-        forecast_cache[cache_key] = df
+    result = forecast_cache.get(cache_key)
+    if result is None:
+        result = predict_inventory(days=days, warehouse=warehouse)
+        forecast_cache[cache_key] = result
 
-    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast', 'Cuft Forecast', 'Containers Forecast']
+    df = result['forecast_df']  # ✅ 从字典中取出 DataFrame
+
+    df = df[['Date', 'container', 'lower_bound', 'upper_bound', 'Sales Prediction', 'Cost Prediction',
+             'Total Cuft Prediction', 'Containers Forecast']]
+    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound', 'Sales Forecast', 'Cost Forecast',
+                  'Cuft Forecast', 'Containers Forecast']
 
     output = io.BytesIO()
     with pd.ExcelWriter(output) as writer:
@@ -134,6 +143,8 @@ def download():
         as_attachment=True,
         download_name=f'forecast_{days}_days_{warehouse}.xlsx'
     )
+
+
 
 
 
@@ -280,8 +291,6 @@ def mark_run_today(warehouse='NJ'):
     with open(path, 'w') as f:
         f.write(now_str)
 
-
-
 def run_daily_refresh_with_data(warehouse='NJ'):
     global apo_cache, sales_cache
 
@@ -295,32 +304,49 @@ def run_daily_refresh_with_data(warehouse='NJ'):
     apo_cache[warehouse] = generate_apo_data(warehouse)
     sales_cache[warehouse] = generate_sales_data(warehouse)
 
+def refresh_data_only(warehouse='NJ'):
+    global apo_cache, sales_cache
+
+    if apo_cache is None:
+        apo_cache = {}
+    if sales_cache is None:
+        sales_cache = {}
+
+    apo_cache[warehouse] = generate_apo_data(warehouse)
+    sales_cache[warehouse] = generate_sales_data(warehouse)
+
 
 from flask import jsonify
 
 @app.route('/daily-refresh')
 def daily_refresh():
-    now = datetime.now(ZoneInfo('America/Los_Angeles'))  # PST / PDT 自动切换
+    now = datetime.now(ZoneInfo('America/Los_Angeles'))
     force = request.args.get('force') == '1'
+    retrain = request.args.get('train') == '1'
     warehouse = request.args.get('warehouse', 'NJ').upper()
 
     if (3 <= now.hour < 4 and not has_run_today(warehouse)) or force:
-        print(f"🚀 Starting training: warehouse={warehouse}, force={force}, PST time={now}")
-        run_daily_refresh_with_data(warehouse)
+        if retrain:
+            print(f"🚀 Training model: warehouse={warehouse}")
+            run_daily_refresh_with_data(warehouse)
+        else:
+            print(f"📊 refreshing data: warehouse={warehouse}")
+            refresh_data_only(warehouse)
+
+        # 画图和记录时间
         container = get_current_container(warehouse)
         plot_half_gauge(container, 0, 220, 'Inventory Level (Containers)', f'static/gauge_{warehouse}.png')
-
         mark_run_today(warehouse)
 
         return jsonify({
-            'message': f'✅ Trained (Warehouse: {warehouse}, Forced: {force})',
+            'message': f'✅ {"Trained" if retrain else "Refreshed data only"} (Warehouse: {warehouse})',
             'last_update': now.strftime('%Y-%m-%d %H:%M')
         })
-    else:
-        return jsonify({
-            'message': f'✅ Warehouse: {warehouse} has already been trained today or it\'s not the scheduled PST time (force={force})',
-            'last_update': now.strftime('%Y-%m-%d %H:%M')
-        })
+
+    return jsonify({
+        'message': f'✅ Already refreshed today or not scheduled time (Warehouse: {warehouse}, force={force})',
+        'last_update': now.strftime('%Y-%m-%d %H:%M')
+    })
 
 
 
