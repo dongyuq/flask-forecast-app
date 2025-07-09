@@ -146,8 +146,6 @@ def download():
 
 
 
-
-
 @app.route('/apo')
 def apo():
     global apo_cache
