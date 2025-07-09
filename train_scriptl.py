@@ -1,6 +1,5 @@
 # train_model.py
 import os
-from datetime import timedelta
 
 from db_utils import query_to_dataframe
 

@@ -1,6 +1,5 @@
 import os
 
-from train_scriptl import get_company_holidays
 import pandas as pd
 import plotly.graph_objs as go
 
@@ -22,7 +21,6 @@ def generate_predictions(future_df, warehouse, days=30):
     """
     import pickle
     import os
-    from prophet.serialize import model_from_json
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -187,7 +185,6 @@ def generate_forecast_charts(future_df, static_dir, days, warehouse, force):
 def predict_inventory(days=30, force=False, warehouse='NJ'):
     import os
     import pandas as pd
-    import pickle
     from db_utils import query_to_dataframe
     from gauge_plot import get_current_container
     from train_scriptl import get_company_holidays
