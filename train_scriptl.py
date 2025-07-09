@@ -1,5 +1,7 @@
 # train_model.py
 import os
+from datetime import timedelta
+
 from db_utils import query_to_dataframe
 
 
@@ -39,14 +41,26 @@ def load_sql(file_name):
         return f.read()
 
 
+def remove_outliers(series, method='iqr', factor=1.5):
+    if method == 'iqr':
+        q1 = series.quantile(0.25)
+        q3 = series.quantile(0.75)
+        iqr = q3 - q1
+        lower = q1 - factor * iqr
+        upper = q3 + factor * iqr
+        return series.clip(lower, upper)
+    elif method == 'rolling':
+        rolling_median = series.rolling(7, min_periods=1, center=True).median()
+        return rolling_median
 
 
 def retrain_models(warehouse):
     import os
     import pandas as pd
-    from sklearn.ensemble import RandomForestRegressor
-    from sklearn.model_selection import train_test_split
     import pickle
+    from prophet import Prophet
+    from datetime import timedelta
+    from pandas.tseries.offsets import BDay
 
     sql_file = f'daily_cuft_sales_cost_{warehouse.lower()}.sql'
     sql = load_sql(sql_file)
@@ -68,12 +82,42 @@ def retrain_models(warehouse):
         'Cost': 'sum'
     }).reset_index()
 
+    # 限定训练数据时间范围
+    start_date = pd.to_datetime('2024-01-01')
+    end_date = pd.to_datetime('2025-07-01')
+    daily_df = daily_df[(daily_df['Invoice Date'] >= start_date) & (daily_df['Invoice Date'] < end_date)]
+
+    # 去异常值
+    daily_df['Sales'] = remove_outliers(daily_df['Sales'], method='iqr')
+    daily_df['Cost'] = remove_outliers(daily_df['Cost'], method='iqr')
+    daily_df['Total Cuft'] = remove_outliers(daily_df['Total Cuft'], method='iqr')
+
     # 填补缺失日期
     daily_df = daily_df.set_index('Invoice Date').asfreq('D').fillna(0).reset_index()
 
-    # ✅ 正确生成节假日列表并打印
-    years = daily_df['Invoice Date'].dt.year.unique()
+    # 仅保留最近6个月用于 weekday 均值
+    latest_date = daily_df['Invoice Date'].max()
+    six_months_ago = latest_date - pd.DateOffset(months=6)
+    recent_df = daily_df[daily_df['Invoice Date'] >= six_months_ago]
 
+    weekday_means = recent_df.groupby(recent_df['Invoice Date'].dt.weekday)[['Total Cuft', 'Sales', 'Cost']].mean()
+
+    for i in range(len(daily_df)):
+        row = daily_df.iloc[i]
+        weekday = row['Invoice Date'].weekday()
+        prev_dates = [row['Invoice Date'] - timedelta(weeks=k) for k in range(1, 4)]
+        prev_values = daily_df[daily_df['Invoice Date'].isin(prev_dates)]
+        prev_values = prev_values[prev_values['Invoice Date'].dt.weekday == weekday]
+
+        for col in ['Total Cuft', 'Sales', 'Cost']:
+            threshold = weekday_means.loc[weekday, col] * 0.3
+            if row[col] < threshold and not prev_values.empty:
+                valid_values = prev_values[col][prev_values[col] > 0]
+                if not valid_values.empty:
+                    daily_df.at[i, col] = valid_values.mean()
+
+    # 获取节假日
+    years = daily_df['Invoice Date'].dt.year.unique()
     holidays = []
     for y in years:
         h = get_company_holidays(int(y))
@@ -81,8 +125,7 @@ def retrain_models(warehouse):
     holidays = pd.to_datetime(holidays)
     holidays = holidays[(holidays >= daily_df['Invoice Date'].min()) & (holidays < daily_df['Invoice Date'].max())]
 
-    from pandas.tseries.offsets import BDay
-
+    # 合并节假日值到下个工作日
     for holiday in holidays:
         idx = daily_df[daily_df['Invoice Date'] == holiday].index
         if not idx.empty:
@@ -92,49 +135,44 @@ def retrain_models(warehouse):
             if not j.empty:
                 j = j[0]
                 for col in ['Sales', 'Cost', 'Total Cuft']:
-                    # ✅ 只有目标天没有数据时才合并
                     if daily_df.at[j, col] == 0:
                         daily_df.at[j, col] = daily_df.at[i, col]
                     else:
                         daily_df.at[j, col] += daily_df.at[i, col]
                     daily_df.at[i, col] = 0
 
-    # 时间特征
-    daily_df['dayofweek'] = daily_df['Invoice Date'].dt.dayofweek
-    daily_df['day'] = daily_df['Invoice Date'].dt.day
-    daily_df['month'] = daily_df['Invoice Date'].dt.month
-    daily_df['lag1'] = daily_df['Total Cuft'].shift(1).fillna(0)
-    daily_df['lag2'] = daily_df['Total Cuft'].shift(2).fillna(0)
-    daily_df['lag7'] = daily_df['Total Cuft'].shift(7).fillna(0)
-
-    # 模型训练
-    X = daily_df[['dayofweek', 'day', 'month', 'lag1', 'lag2', 'lag7']]
-    y_cuft = daily_df['Total Cuft']
-    y_sales = daily_df['Sales']
-    y_cost = daily_df['Cost']
-
-    X_train, _, y_train_cuft, _ = train_test_split(X, y_cuft, test_size=0.2, shuffle=False)
-    _, _, y_train_sales, _ = train_test_split(X, y_sales, test_size=0.2, shuffle=False)
-    _, _, y_train_cost, _ = train_test_split(X, y_cost, test_size=0.2, shuffle=False)
-
-    rf_cuft = RandomForestRegressor(n_estimators=100, random_state=42).fit(X_train, y_train_cuft)
-    rf_sales = RandomForestRegressor(n_estimators=100, random_state=42).fit(X_train, y_train_sales)
-    rf_cost = RandomForestRegressor(n_estimators=100, random_state=42).fit(X_train, y_train_cost)
-
-    # 保存模型
+    # ✅ Prophet 模型训练与保存
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(base_dir, f'rf_model_cuft_{warehouse}.pkl'), 'wb') as f:
-        pickle.dump(rf_cuft, f)
-    with open(os.path.join(base_dir, f'rf_model_sales_{warehouse}.pkl'), 'wb') as f:
-        pickle.dump(rf_sales, f)
-    with open(os.path.join(base_dir, f'rf_model_cost_{warehouse}.pkl'), 'wb') as f:
-        pickle.dump(rf_cost, f)
-    df['Invoice Date'] = pd.to_datetime(df['Invoice Date'])
+    holidays_df = pd.DataFrame({
+        'ds': holidays,
+        'holiday': 'company_holiday'
+    })
+
+    def train_and_save_prophet(df, target_col, model_name):
+        prophet_df = df[['Invoice Date', target_col]].rename(columns={
+            'Invoice Date': 'ds',
+            target_col: 'y'
+        })
+
+        model = Prophet(
+            yearly_seasonality=True,
+            weekly_seasonality=True,
+            daily_seasonality=False,
+            holidays=holidays_df
+        )
+
+        model.fit(prophet_df)
+
+        with open(os.path.join(base_dir, f'prophet_model_{model_name}_{warehouse}.pkl'), 'wb') as f:
+            pickle.dump(model, f)
+
+        print(f"✅ Prophet 模型 {model_name} 训练并保存成功")
+
+    train_and_save_prophet(daily_df, 'Total Cuft', 'cuft')
+    train_and_save_prophet(daily_df, 'Sales', 'sales')
+    train_and_save_prophet(daily_df, 'Cost', 'cost')
+
     df['weekday'] = df['Invoice Date'].dt.dayofweek
     print("📊 周一数据点数量：", df[df['weekday'] == 0].shape[0])
     print("📊 周一数据点平均 Total Cuft：", df[df['weekday'] == 0]['Total Cuft'].mean())
-
-
-    print(f"✅ {warehouse} 仓库模型训练完毕并已保存")
-
-
+    print(f"✅ {warehouse} 仓库 Prophet 模型训练完毕并已保存")

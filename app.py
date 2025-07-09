@@ -320,33 +320,39 @@ from flask import jsonify
 
 @app.route('/daily-refresh')
 def daily_refresh():
+    from train_scriptl import retrain_models
     now = datetime.now(ZoneInfo('America/Los_Angeles'))
     force = request.args.get('force') == '1'
-    retrain = request.args.get('train') == '1'
+    retrain = request.args.get('train') == '1'  # 如果没传 train 就是 False
     warehouse = request.args.get('warehouse', 'NJ').upper()
 
-    if (3 <= now.hour < 4 and not has_run_today(warehouse)) or force:
-        if retrain:
-            print(f"🚀 Training model: warehouse={warehouse}")
-            run_daily_refresh_with_data(warehouse)
-        else:
-            print(f"📊 refreshing data: warehouse={warehouse}")
-            refresh_data_only(warehouse)
-
-        # 画图和记录时间
-        container = get_current_container(warehouse)
-        plot_half_gauge(container, 0, 220, 'Inventory Level (Containers)', f'static/gauge_{warehouse}.png')
-        mark_run_today(warehouse)
-
+    should_run = (3 <= now.hour < 4 and not has_run_today(warehouse)) or force
+    if not should_run:
         return jsonify({
-            'message': f'✅ {"Trained" if retrain else "Refreshed data only"} (Warehouse: {warehouse})',
+            'message': f'✅ Already refreshed today or not scheduled time (Warehouse: {warehouse}, force={force})',
             'last_update': now.strftime('%Y-%m-%d %H:%M')
         })
 
+    # ✅ 默认不训练，只预测
+    if retrain:
+        print(f"🚀 Training model: warehouse={warehouse}")
+        retrain_models(warehouse)
+
+    # ✅ 无论是否训练都刷新 APO/SALES 并预测
+    print(f"📊 Refreshing data + Predicting forecast: warehouse={warehouse}")
+    refresh_data_only(warehouse)
+    predict_inventory(days=30, force=True, warehouse=warehouse)
+
+    container = get_current_container(warehouse)
+    plot_half_gauge(container, 0, 220, 'Inventory Level (Containers)', f'static/gauge_{warehouse}.png')
+    mark_run_today(warehouse)
+
     return jsonify({
-        'message': f'✅ Already refreshed today or not scheduled time (Warehouse: {warehouse}, force={force})',
+        'message': f'✅ {"Trained and Predicted" if retrain else "Predicted (no retrain)"} (Warehouse: {warehouse})',
         'last_update': now.strftime('%Y-%m-%d %H:%M')
     })
+
+
 
 
 
