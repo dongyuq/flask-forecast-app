@@ -339,6 +339,10 @@ def daily_refresh():
     # ✅ 无论是否训练都刷新 APO/SALES 并预测
     print(f"📊 Refreshing data + Predicting forecast: warehouse={warehouse}")
     refresh_data_only(warehouse)
+
+    # ✅ 清除旧的缓存，确保下一次 /predict 看到的是最新的
+    forecast_cache.pop((30, warehouse), None)
+
     predict_inventory(days=30, force=True, warehouse=warehouse)
 
     container = get_current_container(warehouse)

@@ -243,6 +243,9 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
     z_score = 1.28
 
     future_df = adjust_for_holidays(future_df, residual_std)
+    print("🔍 预测数据起始日期：", future_df['Date'].min())
+    print("🔍 预测数据前几行：")
+    print(future_df.head(3))
 
     future_df['lower'] = future_df['Total Cuft Prediction'] - z_score * residual_std
     future_df['upper'] = future_df['Total Cuft Prediction'] + z_score * residual_std
@@ -270,6 +273,7 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
     forecast_with_total = generate_forecast_charts(future_df, static_dir, days, warehouse, force)
 
     monthly_summary = calculate_monthly_summary(df, future_df)
+    print("📢 最早预测日期：", future_df['Date'].min())
 
     return {
         'forecast_df': forecast_with_total,
