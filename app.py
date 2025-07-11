@@ -1,5 +1,6 @@
 import time
 import pandas as pd
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, render_template, jsonify,request,send_file
 from predict_script import predict_inventory
 import threading
@@ -272,7 +273,6 @@ def dynamic_gauge():
 
     return send_file(buf, mimetype='image/png')
 
-
 def has_run_today(warehouse='NJ'):
     path = f"last_run_{warehouse.upper()}.txt"
     if os.path.exists(path):
@@ -314,8 +314,6 @@ def refresh_data_only(warehouse='NJ'):
     sales_cache[warehouse] = generate_sales_data(warehouse)
 
 
-from flask import jsonify
-
 @app.route('/daily-refresh')
 def daily_refresh():
     from train_scriptl import retrain_models
@@ -354,12 +352,40 @@ def daily_refresh():
         'last_update': now.strftime('%Y-%m-%d %H:%M')
     })
 
+def run_scheduled_refresh():
+    with app.app_context():
+        now = datetime.now(ZoneInfo('America/Los_Angeles'))
+        warehouse = 'NJ'
+        print(f"⏰ 定时刷新启动 at {now} for {warehouse}")
 
+        try:
+            # ✅ 刷新 sales + APO 数据
+            refresh_data_only(warehouse)
 
+            # ✅ 清除旧缓存
+            forecast_cache.pop((30, warehouse), None)
+
+            # ✅ 重新预测
+            predict_inventory(days=30, force=True, warehouse=warehouse)
+
+            # ✅ 更新图表
+            container = get_current_container(warehouse)
+            plot_half_gauge(container, 0, 220, 'Inventory Level (Containers)', f'static/gauge_{warehouse}.png')
+
+            # ✅ 标记今天已刷新
+            mark_run_today(warehouse)
+
+            print("✅ 定时刷新成功（未重新训练）")
+        except Exception as e:
+            print(f"❌ 定时刷新失败: {e}")
 
 
 if __name__ == '__main__':
     import os
 
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(run_scheduled_refresh, 'cron', hour=3, minute=0, timezone='America/Los_Angeles')
+    scheduler.start()
+
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
