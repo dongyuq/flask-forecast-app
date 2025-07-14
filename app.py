@@ -23,16 +23,14 @@ lock = threading.Lock()
 ALLOWED_IPS = {'207.140.24.82'}
 IS_PRODUCTION = os.environ.get("ENV") == "production"
 
-
 @app.before_request
 def limit_remote_addr():
-    if not IS_PRODUCTION:
-        return  # 本地开发不做 IP 限制
-
     ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     ip = ip.split(',')[0].strip()
+    print(f"📡 Incoming IP: {ip}")
     if ip not in ALLOWED_IPS:
         abort(403)
+
 
 
 def get_last_update_time(warehouse='NJ'):
