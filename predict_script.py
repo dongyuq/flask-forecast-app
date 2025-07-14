@@ -94,17 +94,17 @@ def generate_predictions(future_df, warehouse, days=30, history_df=None):
         np.random.seed(42)
 
         if 'Sales' in history_df:
-            noise = np.random.normal(0, 0.1, size=len(sales_preds))  # 10% 波动
+            noise = np.random.normal(0, 0.3, size=len(sales_preds))  # 10% 波动
             sales_preds = sales_preds * (1 + noise)
             sales_preds = np.clip(sales_preds, a_min=0, a_max=sales_preds * 1.2)
 
         if 'Cost' in history_df:
-            noise = np.random.normal(0, 0.1, size=len(cost_preds))
+            noise = np.random.normal(0, 0.3, size=len(cost_preds))
             cost_preds = cost_preds * (1 + noise)
             cost_preds = np.clip(cost_preds, a_min=0, a_max=cost_preds * 1.2)
 
         if 'Total Cuft' in history_df:
-            noise = np.random.normal(0, 0.1, size=len(cuft_preds))
+            noise = np.random.normal(0, 0.3, size=len(cuft_preds))
             cuft_preds = cuft_preds * (1 + noise)
             cuft_preds = np.clip(cuft_preds, a_min=0, a_max=cuft_preds * 1.2)
 
