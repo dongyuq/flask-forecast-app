@@ -91,16 +91,45 @@ def predict():
     df = result['forecast_df']
     monthly = result['monthly_summary']
     df['Date'] = df['Date'].astype(str).str[:10]  # 只保留年月日
-    df = df[['Date', 'container', 'lower_bound', 'upper_bound',
-             'Sales Prediction', 'Cost Prediction', 'Total Cuft Prediction', 'Containers Forecast']]
 
-    df.columns = ['Date', 'Containers', 'Lower bound', 'Upper bound',
-                  'Sales Forecast', 'Cost Forecast', 'Cuft Forecast', 'Containers Forecast']
+    # ✅ 先重命名
+    df = df.rename(columns={
+        'container': 'Containers',
+        'lower_bound': 'Lower bound',
+        'upper_bound': 'Upper bound',
+        'Sales Prediction': 'Sales Forecast',
+        'Cost Prediction': 'Cost Forecast',
+        'Total Cuft Prediction': 'Cuft Forecast',
+        'Containers Forecast': 'Containers Forecast'
+    })
 
+    # 只保留展示列
+    df = df[['Date', 'Containers', 'Lower bound', 'Upper bound',
+             'Sales Forecast', 'Cost Forecast', 'Cuft Forecast', 'Containers Forecast']]
+
+    # 排除 Total 后求和
+    df_no_total = df[df['Date'] != 'Total']
+
+    # 生成一行 Total 行
+    total_row = {
+        'Date': 'Total',
+        'Containers': round(df_no_total['Containers'].sum(), 2),
+        'Lower bound': '',
+        'Upper bound': '',
+        'Sales Forecast': f"${int(df_no_total['Sales Forecast'].sum()):,}",
+        'Cost Forecast': f"${int(df_no_total['Cost Forecast'].sum()):,}",
+        'Cuft Forecast': round(df_no_total['Cuft Forecast'].sum(), 2),
+        'Containers Forecast': round(df_no_total['Containers Forecast'].sum(), 2)
+    }
+
+    # 只加一次 total
+    df = pd.concat([df_no_total, pd.DataFrame([total_row])], ignore_index=True)
+
+    # ✅ 输出HTML
     table_html = df.to_html(
         index=False,
         classes='table table-bordered table-hover table-sm text-center',
-        table_id='salesTable',  # ⬅️ 这一句很关键！
+        table_id='salesTable',
         justify='center',
         border=0
     )
@@ -113,6 +142,7 @@ def predict():
         'table_html': table_html,
         'monthly_summary': monthly
     })
+
 
 
 @app.route('/download')
@@ -231,6 +261,7 @@ def sales():
     sales_values = df_group['Sales'].astype(float).round(0).tolist()
     cost_values = df_group['Cost'].astype(float).round(0).tolist()
     cuft_values = df_group['Total Cuft'].astype(float).round(0).tolist()
+    container_values = (df_group['Total Cuft'].astype(float) / 2350).round(2).tolist()
 
     table_html = df_group.to_html(
         index=False,
@@ -253,7 +284,9 @@ def sales():
         month_name=month_name,
         monthly_cuft=monthly_cuft,
         monthly_containers = monthly_containers,
-        last_update  = last_update
+        last_update  = last_update,
+        container_values=container_values,
+
     )
 
 
@@ -313,13 +346,12 @@ def refresh_data_only(warehouse='NJ'):
     apo_cache[warehouse] = generate_apo_data(warehouse)
     sales_cache[warehouse] = generate_sales_data(warehouse)
 
-
 @app.route('/daily-refresh')
 def daily_refresh():
     from train_scriptl import retrain_models
     now = datetime.now(ZoneInfo('America/Los_Angeles'))
     force = request.args.get('force') == '1'
-    retrain = request.args.get('train') == '1'  # 如果没传 train 就是 False
+    retrain = request.args.get('train') == '1'
     warehouse = request.args.get('warehouse', 'NJ').upper()
 
     should_run = (3 <= now.hour < 4 and not has_run_today(warehouse)) or force
@@ -329,20 +361,25 @@ def daily_refresh():
             'last_update': now.strftime('%Y-%m-%d %H:%M')
         })
 
-    # ✅ 默认不训练，只预测
     if retrain:
         print(f"🚀 Training model: warehouse={warehouse}")
         retrain_models(warehouse)
 
-    # ✅ 无论是否训练都刷新 APO/SALES 并预测
-    print(f"📊 Refreshing data + Predicting forecast: warehouse={warehouse}")
+    print(f"📊 Refreshing data only for warehouse={warehouse}")
     refresh_data_only(warehouse)
 
-    # ✅ 清除旧的缓存，确保下一次 /predict 看到的是最新的
-    forecast_cache.pop((30, warehouse), None)
+    # ✅ 统一预测 90 天，只缓存一份
+    print(f"🔁 Predicting 90-day forecast for {warehouse}")
+    with lock:
+        # 删除所有旧缓存（30、60、90）
+        keys_to_remove = [k for k in forecast_cache if k[1] == warehouse]
+        for k in keys_to_remove:
+            del forecast_cache[k]
 
-    predict_inventory(days=30, force=True, warehouse=warehouse)
+        result = predict_inventory(days=90, force=True, warehouse=warehouse)
+        forecast_cache[(90, warehouse)] = result
 
+    # ✅ 更新 gauge 图
     container = get_current_container(warehouse)
     plot_half_gauge(container, 0, 220, 'Inventory Level (Containers)', f'static/gauge_{warehouse}.png')
     mark_run_today(warehouse)
@@ -351,6 +388,10 @@ def daily_refresh():
         'message': f'✅ {"Trained and Predicted" if retrain else "Predicted (no retrain)"} (Warehouse: {warehouse})',
         'last_update': now.strftime('%Y-%m-%d %H:%M')
     })
+
+
+
+
 
 def run_scheduled_refresh():
     with app.app_context():
@@ -388,4 +429,4 @@ if __name__ == '__main__':
     scheduler.start()
 
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=True)

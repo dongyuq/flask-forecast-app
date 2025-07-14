@@ -173,12 +173,6 @@
 
 
 
-
-
-
-
-
-
   <!-- 🚧 HMLG 提示区域 -->
   <div id="underDevMessage" style="display: none; margin: 2rem auto; max-width: 600px;">
     <div class="alert alert-warning text-center" role="alert">
@@ -232,6 +226,8 @@
     const salesData = {{ sales_values | tojson }};
     const costData = {{ cost_values | tojson }};
     const cuftData = {{ cuft_values | tojson }};
+    const containerData = {{ container_values | tojson }};
+
 
     const ctx = document.getElementById('salesChart').getContext('2d');
     new Chart(ctx, {
@@ -256,8 +252,8 @@
             yAxisID: 'y'
           },
           {
-            label: 'Total Cuft (CBF)',
-            data: cuftData,
+            label: 'Containers Sold',
+            data: containerData,
             borderColor: 'green',
             fill: false,
             tension: 0.2,
@@ -283,7 +279,7 @@
           },
           y1: {
             position: 'right',
-            title: { display: true, text: 'Total Cuft (CBF)' },
+            title: { display: true, text: 'Containers Sold' },
             beginAtZero: true,
             grid: { drawOnChartArea: false }
           }

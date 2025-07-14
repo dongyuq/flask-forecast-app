@@ -157,7 +157,9 @@ def retrain_models(warehouse):
             yearly_seasonality=True,
             weekly_seasonality=True,
             daily_seasonality=False,
-            holidays=holidays_df
+            holidays=holidays_df,
+            changepoint_prior_scale=0.8,
+            n_changepoints=300
         )
 
         model.fit(prophet_df)
