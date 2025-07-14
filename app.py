@@ -1,7 +1,7 @@
 import time
 import pandas as pd
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, render_template, jsonify,request,send_file
+from flask import Flask, render_template, jsonify,request,send_file, abort
 from predict_script import predict_inventory
 import threading
 from gauge_plot import get_current_container, plot_half_gauge
@@ -9,6 +9,7 @@ from daily_refresh import run_daily_refresh, generate_apo_data, generate_sales_d
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import io
+import os
 
 app = Flask(__name__)
 
@@ -17,6 +18,21 @@ forecast_cache = {}
 apo_cache = {}
 sales_cache = {}
 lock = threading.Lock()
+
+# 设置允许的 IP 白名单（你公司公网 IP）
+ALLOWED_IPS = {'207.140.24.82'}
+IS_PRODUCTION = os.environ.get("ENV") == "production"
+
+
+@app.before_request
+def limit_remote_addr():
+    if not IS_PRODUCTION:
+        return  # 本地开发不做 IP 限制
+
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    ip = ip.split(',')[0].strip()
+    if ip not in ALLOWED_IPS:
+        abort(403)
 
 
 def get_last_update_time(warehouse='NJ'):
