@@ -20,7 +20,7 @@ sales_cache = {}
 lock = threading.Lock()
 
 # 设置允许的 IP 白名单（你公司公网 IP）
-ALLOWED_IPS = {'207.140.24.82','127.0.0.1','192.168.1.139'}
+ALLOWED_IPS = {'207.140.24.82','71.24.118.105'}
 IS_PRODUCTION = os.environ.get("ENV") == "production"
 
 @app.before_request
