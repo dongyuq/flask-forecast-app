@@ -13,6 +13,10 @@ import os
 
 app = Flask(__name__)
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
+
 # 🔒 用线程锁防止并发访问时冲突
 forecast_cache = {}
 apo_cache = {}
@@ -44,12 +48,19 @@ IS_PRODUCTION = os.environ.get("ENV") == "production"
 
 @app.before_request
 def limit_remote_addr():
-    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    ip = ip.split(',')[0].strip()
+    ip = request.remote_addr
     print(f"📡 Incoming IP: {ip}")
-    if ip not in ALLOWED_IPS:
+
+    if request.path == "/ping":  # 👈 放行 ping 路径
+        return
+
+    if IS_PRODUCTION and ip not in ALLOWED_IPS:
         abort(403)
 
+
+@app.route("/ping")
+def ping():
+    return "pong", 200
 
 
 def get_last_update_time(warehouse='NJ'):
