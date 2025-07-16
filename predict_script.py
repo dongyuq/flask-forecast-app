@@ -73,39 +73,39 @@ def generate_predictions(future_df, warehouse, days=30, history_df=None):
         with open(os.path.join(base_dir, f'prophet_model_{metric}_{warehouse}.pkl'), 'rb') as f:
             return pickle.load(f)
 
-    model_cuft = load_model('cuft')
+    # ✅ 只加载 sales 模型
     model_sales = load_model('sales')
 
     start_date = future_df['Date'].min()
     future_dates = pd.date_range(start=start_date, periods=days, freq='D')
     future_df_prophet = pd.DataFrame({'ds': future_dates})
 
-    forecast_cuft = model_cuft.predict(future_df_prophet)
     forecast_sales = model_sales.predict(future_df_prophet)
-
-    cuft_preds = np.array(forecast_cuft['yhat'])
     sales_preds = np.array(forecast_sales['yhat'])
 
-    # ✨ 添加扰动（相对比例 + 限制范围）
+    # ✨ 添加扰动（包含季节性 + 随机波动）
     if history_df is not None and not history_df.empty:
         np.random.seed(42)
 
-        if 'Sales' in history_df:
-            noise = np.random.normal(0, 0.3, size=len(sales_preds))  # 30% 波动
-            sales_preds = sales_preds * (1 + noise)
-            sales_preds = np.clip(sales_preds, a_min=0, a_max=sales_preds * 1.2)
+        # 正弦周期波动（模拟周五高、周一低）
+        seasonal_wave = 0.15 * np.sin(np.linspace(0, 3 * np.pi, len(sales_preds)))
+        noise = np.random.normal(0, 0.25, size=len(sales_preds))  # 25% 波动
+        sales_preds = sales_preds * (1 + noise + seasonal_wave)
+        sales_preds = np.clip(sales_preds, a_min=0, a_max=sales_preds * 1.25)
 
-        if 'Total Cuft' in history_df:
-            noise = np.random.normal(0, 0.3, size=len(cuft_preds))
-            cuft_preds = cuft_preds * (1 + noise)
-            cuft_preds = np.clip(cuft_preds, a_min=0, a_max=cuft_preds * 1.2)
+        # 👇 平均 Cuft / Sales 比率（推 Cuft）
+        cuft_sales_ratio_series = (history_df['Total Cuft'] / history_df['Sales']).replace([np.inf, -np.inf], np.nan).dropna()
+        avg_cuft_per_dollar = cuft_sales_ratio_series.mean()
+        cuft_preds = sales_preds * avg_cuft_per_dollar
 
-        # 👇 根据历史平均成本比例计算 cost
+        # 👇 平均 Cost / Sales 比率（推 Cost）
         cost_ratio_series = (history_df['Cost'] / history_df['Sales']).replace([np.inf, -np.inf], np.nan).dropna()
         avg_cost_ratio = cost_ratio_series.clip(upper=1).mean()
         cost_preds = sales_preds * avg_cost_ratio
     else:
-        cost_preds = sales_preds * 0.7  # fallback: assume 60%成本率
+        # Fallback
+        cuft_preds = sales_preds * 0.072  # 假设每 $1 占 0.03 cuft
+        cost_preds = sales_preds * 0.7
 
     return cuft_preds.tolist(), sales_preds.tolist(), cost_preds.tolist()
 
