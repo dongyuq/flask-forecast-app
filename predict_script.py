@@ -75,7 +75,6 @@ def generate_predictions(future_df, warehouse, days=30, history_df=None):
 
     model_cuft = load_model('cuft')
     model_sales = load_model('sales')
-    model_cost = load_model('cost')
 
     start_date = future_df['Date'].min()
     future_dates = pd.date_range(start=start_date, periods=days, freq='D')
@@ -83,32 +82,33 @@ def generate_predictions(future_df, warehouse, days=30, history_df=None):
 
     forecast_cuft = model_cuft.predict(future_df_prophet)
     forecast_sales = model_sales.predict(future_df_prophet)
-    forecast_cost = model_cost.predict(future_df_prophet)
 
     cuft_preds = np.array(forecast_cuft['yhat'])
     sales_preds = np.array(forecast_sales['yhat'])
-    cost_preds = np.array(forecast_cost['yhat'])
 
     # ✨ 添加扰动（相对比例 + 限制范围）
     if history_df is not None and not history_df.empty:
         np.random.seed(42)
 
         if 'Sales' in history_df:
-            noise = np.random.normal(0, 0.3, size=len(sales_preds))  # 10% 波动
+            noise = np.random.normal(0, 0.3, size=len(sales_preds))  # 30% 波动
             sales_preds = sales_preds * (1 + noise)
             sales_preds = np.clip(sales_preds, a_min=0, a_max=sales_preds * 1.2)
-
-        if 'Cost' in history_df:
-            noise = np.random.normal(0, 0.3, size=len(cost_preds))
-            cost_preds = cost_preds * (1 + noise)
-            cost_preds = np.clip(cost_preds, a_min=0, a_max=cost_preds * 1.2)
 
         if 'Total Cuft' in history_df:
             noise = np.random.normal(0, 0.3, size=len(cuft_preds))
             cuft_preds = cuft_preds * (1 + noise)
             cuft_preds = np.clip(cuft_preds, a_min=0, a_max=cuft_preds * 1.2)
 
+        # 👇 根据历史平均成本比例计算 cost
+        cost_ratio_series = (history_df['Cost'] / history_df['Sales']).replace([np.inf, -np.inf], np.nan).dropna()
+        avg_cost_ratio = cost_ratio_series.clip(upper=1).mean()
+        cost_preds = sales_preds * avg_cost_ratio
+    else:
+        cost_preds = sales_preds * 0.7  # fallback: assume 60%成本率
+
     return cuft_preds.tolist(), sales_preds.tolist(), cost_preds.tolist()
+
 
 
 def calculate_monthly_summary(df, future_df):
