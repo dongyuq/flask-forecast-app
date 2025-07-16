@@ -370,7 +370,7 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
 
     # 📉 上下界估算
     residual_std = daily_df['Total Cuft'].std()
-    z_score = 1.28
+    z_score = 2.576
     future_df_full = adjust_for_holidays(future_df_full, residual_std)
     future_df_full['lower'] = future_df_full['Total Cuft Prediction'] - z_score * residual_std
     future_df_full['upper'] = future_df_full['Total Cuft Prediction'] + z_score * residual_std
@@ -433,7 +433,6 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
         'forecast_df': forecast_with_total,
         'monthly_summary': monthly_summary
     }
-
 
 
 
