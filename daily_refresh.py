@@ -59,7 +59,7 @@ def generate_sales_data(warehouse='NJ'):
     df_group.insert(cuft_index + 1, 'Containers', containers_col)
 
     # ➕ 添加 Margin 列
-    df_group['Margin'] = ((df_group['Sales'] - df_group['Cost']) / df_group['Cost']).round(4) * 100
+    df_group['Margin'] = ((df_group['Sales'] - df_group['Cost']) / df_group['Sales']).round(4) * 100
     df_group['Margin'] = df_group['Margin'].map(lambda x: f"{x:.1f}%" if pd.notnull(x) else "")
 
     # 👉 把 Margin 列插入到 Cost 之后
