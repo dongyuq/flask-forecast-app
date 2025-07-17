@@ -15,7 +15,7 @@ app = Flask(__name__)
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=2)
 
 # 🔒 用线程锁防止并发访问时冲突
 forecast_cache = {}
