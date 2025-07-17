@@ -13,10 +13,6 @@ import os
 
 app = Flask(__name__)
 
-from werkzeug.middleware.proxy_fix import ProxyFix
-
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=2)
-
 # 🔒 用线程锁防止并发访问时冲突
 forecast_cache = {}
 apo_cache = {}
@@ -26,6 +22,7 @@ lock = threading.Lock()
 # 设置允许的 IP 白名单（你公司公网 IP）
 # 设置允许的 IP 白名单（包括你公司公网 IP + UptimeRobot IP）
 ALLOWED_IPS = {
+    '127.0.0.1',
     '207.140.24.82',  # 你公司 IP
     '71.24.118.105',  # 你自己用的
     # ✅ UptimeRobot IPs（IPv4 版，建议全部添加）
@@ -46,16 +43,24 @@ ALLOWED_IPS = {
 
 IS_PRODUCTION = os.environ.get("ENV") == "production"
 
+
 @app.before_request
 def limit_remote_addr():
-    ip = request.remote_addr
-    print(f"📡 Incoming IP: {ip}")
-
-    if request.path == "/ping":  # 👈 放行 ping 路径
+    if request.path == "/ping":  # 放行 ping 路径
         return
 
-    if IS_PRODUCTION and ip not in ALLOWED_IPS:
+
+
+    # 更安全地获取真实用户 IP（优先使用 Flask 提供的 access_route）
+    ip = request.access_route[0] if request.access_route else request.remote_addr
+
+    app.logger.info(f"📡 Real incoming IP: {ip}")
+
+    if ip not in ALLOWED_IPS:
+        app.logger.warning(f"Blocked IP: {ip}")
         abort(403)
+
+
 
 
 @app.route("/ping")

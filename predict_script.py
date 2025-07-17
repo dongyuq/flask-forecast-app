@@ -113,13 +113,15 @@ def generate_predictions(future_df, warehouse, days=30, history_df=None):
 
 def calculate_monthly_summary(df, future_df):
     from datetime import datetime
+    import pytz
 
-    today = pd.Timestamp.today().normalize()
+    tz = pytz.timezone('America/Los_Angeles')
+    today = pd.Timestamp.now(tz).normalize()  # 用洛杉矶时间的当天0点
     month_start = today.replace(day=1)
     month_end = month_start + pd.offsets.MonthEnd(0)
 
     # 🟩 实际值
-    df['Invoice Date'] = pd.to_datetime(df['Invoice Date'])
+    df['Invoice Date'] = pd.to_datetime(df['Invoice Date']).dt.tz_localize(tz, ambiguous='NaT', nonexistent='NaT')
     real_df = df[(df['Invoice Date'] >= month_start) & (df['Invoice Date'] < today)]
     real_grouped = real_df.groupby('Invoice Date').agg({
         'Sales': 'sum',
@@ -132,7 +134,8 @@ def calculate_monthly_summary(df, future_df):
     actual_cuft = real_grouped['Total Cuft'].sum()
 
     # 🟨 预测值（未来部分 + 今天）
-    future_df['Date'] = pd.to_datetime(future_df['Date'])
+    future_df['Date'] = pd.to_datetime(future_df['Date']).dt.tz_localize(tz)
+
     forecast_range = future_df[
         (future_df['Date'] >= today) & (future_df['Date'] <= month_end)
     ]
