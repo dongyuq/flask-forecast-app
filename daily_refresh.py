@@ -25,8 +25,10 @@ def generate_apo_data(warehouse='NJ'):
 
     full_dates = pd.date_range(start=df['Date'].min(), end=df['Date'].max())
     df = df.set_index('Date').reindex(full_dates).fillna(0).rename_axis('Date').reset_index()
-    df.columns = ['Date', 'APO']
-    df['APO'] = df['APO'].astype(int)
+    df.columns = ['Date', 'APO', 'AGA Count', 'Oversea Count']
+    df.rename(columns={'APO': 'Total APO'}, inplace=True)
+    df['Total APO'] = df['Total APO'].astype(int)
+    df['Oversea Count'] = df['Oversea Count'].astype(int)
     return df
 
 

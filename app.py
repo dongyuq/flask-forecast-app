@@ -239,7 +239,7 @@ def apo():
             apo_df = apo_cache[warehouse]
 
     dates = apo_df['Date'].dt.strftime('%Y-%m-%d').tolist()
-    values = apo_df['APO'].tolist()
+    values = apo_df['Total APO'].tolist()
 
     table_html = apo_df.to_html(
         index=False,

@@ -11,42 +11,64 @@ WITH date_series AS (
 transformed_po AS (
     SELECT
         CASE
-            WHEN EXTRACT(DOW FROM raw_date) = 6 THEN raw_date + INTERVAL '2 day'  -- 周六 → 周一
-            WHEN EXTRACT(DOW FROM raw_date) = 0 THEN raw_date + INTERVAL '1 day'  -- 周日 → 周一
+            WHEN EXTRACT(DOW FROM raw_date) = 6 THEN raw_date + INTERVAL '2 day'
+            WHEN EXTRACT(DOW FROM raw_date) = 0 THEN raw_date + INTERVAL '1 day'
             ELSE raw_date
         END AS "Date",
-        po_number
+        po_number,
+        vendor_id
     FROM (
         SELECT
             (
                 CASE
-                    WHEN TRIM(po_number) LIKE 'A%' THEN a_eta
+                    WHEN TRIM(vendor_id) = 'AGA' THEN a_eta
                     ELSE a_eta + INTERVAL '7 day'
                 END
             )::DATE AS raw_date,
-            TRIM(po_number) AS po_number
+            TRIM(po_number) AS po_number,
+            TRIM(vendor_id) AS vendor_id
         FROM bi.po_eta
     ) AS base
 ),
-
 
 counted_po AS (
     SELECT
         "Date",
         COUNT(*) AS base_count,
-        SUM(CASE WHEN po_number NOT LIKE 'A%' THEN 1 ELSE 0 END) AS non_A_count
+        SUM(CASE WHEN vendor_id = 'AGA' THEN 1 ELSE 0 END) AS aga_count,
+        SUM(CASE WHEN vendor_id != 'AGA' THEN 1 ELSE 0 END) AS oversea_count
     FROM transformed_po
     GROUP BY "Date"
+),
+
+final AS (
+    SELECT
+        ds."Date",
+        COALESCE(cp.base_count, 0) AS base_count,
+        COALESCE(cp.aga_count, 0) AS aga_count,
+        COALESCE(cp.oversea_count, 0) AS oversea_count,
+        CASE
+            WHEN cp.base_count IS NULL THEN 1
+            WHEN cp.aga_count = 0 THEN 1
+            ELSE 0
+        END AS added
+    FROM date_series ds
+    LEFT JOIN counted_po cp ON ds."Date" = cp."Date"
 )
 
 SELECT
-    ds."Date",
-    COALESCE(cp.base_count, 0) +
+    "Date",
+    base_count + added AS "APO",
+
+    -- AGA 列：如果补了1，加上 +1 forecast
     CASE
-        WHEN cp.base_count IS NULL THEN 1             -- 没有任何记录，补1
-        WHEN cp.non_A_count = cp.base_count THEN 1    -- 全是非A开头，补1
-        ELSE 0
-    END AS "APO"
-FROM date_series ds
-LEFT JOIN counted_po cp ON ds."Date" = cp."Date"
-ORDER BY ds."Date";
+        WHEN added = 1 THEN aga_count || ' +1 Forecast'
+        ELSE aga_count::text
+    END AS "AGA Count",
+
+    -- Oversea 列：保持不变
+    oversea_count AS "Oversea Count"
+
+FROM final
+ORDER BY "Date";
+
