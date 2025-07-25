@@ -39,36 +39,13 @@ counted_po AS (
         SUM(CASE WHEN vendor_id != 'AGA' THEN 1 ELSE 0 END) AS oversea_count
     FROM transformed_po
     GROUP BY "Date"
-),
-
-final AS (
-    SELECT
-        ds."Date",
-        COALESCE(cp.base_count, 0) AS base_count,
-        COALESCE(cp.aga_count, 0) AS aga_count,
-        COALESCE(cp.oversea_count, 0) AS oversea_count,
-        CASE
-            WHEN cp.base_count IS NULL THEN 1
-            WHEN cp.aga_count = 0 THEN 1
-            ELSE 0
-        END AS added
-    FROM date_series ds
-    LEFT JOIN counted_po cp ON ds."Date" = cp."Date"
 )
 
 SELECT
-    "Date",
-    base_count + added AS "APO",
-
-    -- AGA 列：如果补了1，加上 +1 forecast
-    CASE
-        WHEN added = 1 THEN aga_count || ' +1 Forecast'
-        ELSE aga_count::text
-    END AS "AGA Count",
-
-    -- Oversea 列：保持不变
-    oversea_count AS "Oversea Count"
-
-FROM final
+    ds."Date",
+    COALESCE(cp.base_count, 0) AS "APO",
+    COALESCE(cp.aga_count, 0) AS "AGA Count",
+    COALESCE(cp.oversea_count, 0) AS "Oversea Count"
+FROM date_series ds
+LEFT JOIN counted_po cp ON ds."Date" = cp."Date"
 ORDER BY "Date";
-
