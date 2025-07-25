@@ -110,7 +110,6 @@ def generate_predictions(future_df, warehouse, days=30, history_df=None):
     return cuft_preds.tolist(), sales_preds.tolist(), cost_preds.tolist()
 
 
-
 def calculate_monthly_summary(df, future_df):
     from datetime import datetime
 

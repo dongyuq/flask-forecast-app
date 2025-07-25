@@ -71,8 +71,7 @@ def retrain_models(warehouse):
     df['Total Cuft'] = pd.to_numeric(df['Total Cuft'], errors='coerce')
 
     from zoneinfo import ZoneInfo
-    df['Invoice Date'] = pd.to_datetime(df['Invoice Date']).dt.tz_localize('UTC').dt.tz_convert(
-        'America/Los_Angeles').dt.tz_localize(None)
+    df['Invoice Date'] = pd.to_datetime(df['Invoice Date']).dt.tz_localize("America/Los_Angeles")
 
     # 聚合按日
     daily_df = df.groupby('Invoice Date').agg({

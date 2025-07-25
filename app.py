@@ -242,28 +242,36 @@ def apo():
 
     # ✅ 统一使用 PST 时区
     apo_df = apo_df.copy()
-    apo_df['Date'] = pd.to_datetime(apo_df['Date'], errors='coerce').dt.tz_localize("UTC").dt.tz_convert(ZoneInfo("America/Los_Angeles"))
+    apo_df['Date'] = pd.to_datetime(apo_df['Date'], errors='coerce').dt.tz_localize("America/Los_Angeles")
 
     dates = apo_df['Date'].dt.strftime('%Y-%m-%d').tolist()
     values = apo_df['Total APO'].tolist()
 
 
     # ✅ 统计未来 90 天内，每月 APO/AGA/Oversea
-    end_date = now + timedelta(days=90)
+    # ✅ 获取今天日期（PST），去掉时分秒
+    now = pd.Timestamp.now(tz="America/Los_Angeles").normalize()
+    end_date = now + pd.Timedelta(days=90)
+
+    # ✅ 时间过滤：确保包含今天
     mask = (apo_df['Date'] >= now) & (apo_df['Date'] <= end_date)
+
     future_df = apo_df.loc[mask].copy()
 
-    # ✅ 添加 'MonthName' 列
-    future_df['MonthName'] = future_df['Date'].dt.strftime('%B')  # e.g. July, August
+    # ✅ 替代 MonthName，用 Year-Month 格式保证唯一性
+    future_df['MonthKey'] = future_df['Date'].dt.to_period('M').astype(str)
+    future_df['MonthDisplay'] = future_df['Date'].dt.strftime('%B')  # 只用于展示
 
+    # ✅ groupby 时用 MonthKey，展示时仍然用英文月份
     monthly_summary = (
-        future_df.groupby('MonthName')[['Total APO', 'AGA Count', 'Oversea Count']]
+        future_df.groupby(['MonthKey', 'MonthDisplay'])[['Total APO', 'AGA Count', 'Oversea Count']]
         .sum()
         .reset_index()
-        .sort_values(by='MonthName', key=lambda col: pd.to_datetime(col, format='%B'))
+        .sort_values(by='MonthKey')
     )
-    monthly_summary_list = monthly_summary.to_dict(orient='records')
-
+    monthly_summary = monthly_summary.rename(columns={'MonthDisplay': 'MonthName'})
+    monthly_summary_list = monthly_summary[['MonthName', 'Total APO', 'AGA Count', 'Oversea Count']].to_dict(
+        orient='records')
 
     # ✅ HTML 表格逻辑不动
     table_df = apo_df.copy()
@@ -272,6 +280,8 @@ def apo():
     total_row_copy['Date'] = 'Total'
     total_display_row = pd.DataFrame([total_row_copy])[table_df.columns]
     table_df = pd.concat([table_df, total_display_row], ignore_index=True)
+    print("✅ Monthly Summary Preview:")
+    print(monthly_summary[['MonthKey', 'MonthName', 'Total APO', 'AGA Count', 'Oversea Count']])
 
     table_html = table_df.to_html(
         index=False,
