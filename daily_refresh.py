@@ -28,6 +28,7 @@ def generate_apo_data(warehouse='NJ'):
     df.columns = ['Date', 'APO', 'AGA Count', 'Oversea Count']
     df.rename(columns={'APO': 'Total APO'}, inplace=True)
     df['Total APO'] = df['Total APO'].astype(int)
+    df['AGA Count'] = df['AGA Count'].astype(int)
     df['Oversea Count'] = df['Oversea Count'].astype(int)
     return df
 

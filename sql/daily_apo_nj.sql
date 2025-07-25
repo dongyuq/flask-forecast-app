@@ -43,9 +43,9 @@ counted_po AS (
 
 SELECT
     ds."Date",
-    COALESCE(cp.base_count, 0) AS "APO",
-    COALESCE(cp.aga_count, 0) AS "AGA Count",
-    COALESCE(cp.oversea_count, 0) AS "Oversea Count"
+    COALESCE(cp.base_count, 0)::int AS "APO",
+    COALESCE(cp.aga_count, 0)::int AS "AGA Count",
+    COALESCE(cp.oversea_count, 0)::int AS "Oversea Count"
 FROM date_series ds
 LEFT JOIN counted_po cp ON ds."Date" = cp."Date"
-ORDER BY "Date";
+ORDER BY ds."Date";

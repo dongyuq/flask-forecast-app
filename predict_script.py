@@ -318,6 +318,11 @@ def predict_inventory(days=30, force=False, warehouse='NJ'):
     # 📥 加载 APO 数据
     sql_apo = load_sql('daily_apo.sql', warehouse)
     incoming_df = query_to_dataframe(sql_apo)
+
+    # ✅ 过滤掉 'Total' 行，避免 pd.to_datetime 报错
+    incoming_df = incoming_df[incoming_df['Date'] != 'Total'].copy()
+
+    # ✅ 转换为日期格式
     incoming_df['Date'] = pd.to_datetime(incoming_df['Date'])
 
     # 📊 聚合为 daily_df
