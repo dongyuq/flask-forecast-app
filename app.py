@@ -6,8 +6,9 @@ from predict_script import predict_inventory
 import threading
 from gauge_plot import get_current_container, plot_half_gauge
 from daily_refresh import run_daily_refresh, generate_apo_data, generate_sales_data
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from bs4 import BeautifulSoup
 import io
 import os
 
@@ -225,6 +226,7 @@ def download():
 def apo():
     global apo_cache
     warehouse = request.args.get('warehouse', 'NJ')
+    now = datetime.now(ZoneInfo("America/Los_Angeles"))
 
     with lock:
         if apo_cache is None:
@@ -232,27 +234,76 @@ def apo():
 
         if warehouse not in apo_cache:
             print(f"⚠️ APO 缓存缺失，加载 {warehouse}")
-            apo_df = generate_apo_data(warehouse=warehouse)
-            apo_cache[warehouse] = apo_df
+            apo_df, total_row = generate_apo_data(warehouse=warehouse)
+            apo_cache[warehouse] = (apo_df, total_row)
         else:
             print(f"✅ 从缓存读取 APO - {warehouse}")
-            apo_df = apo_cache[warehouse]
+            apo_df, total_row = apo_cache[warehouse]
+
+    # ✅ 统一使用 PST 时区
+    apo_df = apo_df.copy()
+    apo_df['Date'] = pd.to_datetime(apo_df['Date'], errors='coerce').dt.tz_localize("UTC").dt.tz_convert(ZoneInfo("America/Los_Angeles"))
 
     dates = apo_df['Date'].dt.strftime('%Y-%m-%d').tolist()
     values = apo_df['Total APO'].tolist()
 
-    table_html = apo_df.to_html(
+
+    # ✅ 统计未来 90 天内，每月 APO/AGA/Oversea
+    end_date = now + timedelta(days=90)
+    mask = (apo_df['Date'] >= now) & (apo_df['Date'] <= end_date)
+    future_df = apo_df.loc[mask].copy()
+
+    # ✅ 添加 'MonthName' 列
+    future_df['MonthName'] = future_df['Date'].dt.strftime('%B')  # e.g. July, August
+
+    monthly_summary = (
+        future_df.groupby('MonthName')[['Total APO', 'AGA Count', 'Oversea Count']]
+        .sum()
+        .reset_index()
+        .sort_values(by='MonthName', key=lambda col: pd.to_datetime(col, format='%B'))
+    )
+    monthly_summary_list = monthly_summary.to_dict(orient='records')
+
+
+    # ✅ HTML 表格逻辑不动
+    table_df = apo_df.copy()
+    table_df['Date'] = table_df['Date'].dt.strftime('%Y-%m-%d')
+    total_row_copy = total_row.copy()
+    total_row_copy['Date'] = 'Total'
+    total_display_row = pd.DataFrame([total_row_copy])[table_df.columns]
+    table_df = pd.concat([table_df, total_display_row], ignore_index=True)
+
+    table_html = table_df.to_html(
         index=False,
         classes='table table-bordered table-hover table-striped',
-        justify='center'
+        justify='center',
+        border=0
     )
+
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(table_html, 'html.parser')
+    table = soup.find('table')
+
+    first_tr = table.find('tr')
+    thead = soup.new_tag('thead')
+    first_tr.wrap(thead)
+    for td in thead.find_all('td'):
+        td.name = 'th'
+    trs = table.find_all('tr')
+    if trs:
+        trs[-1]['class'] = trs[-1].get('class', []) + ['sticky-total']
+
+    table_html = str(soup)
 
     return render_template(
         'apo.html',
         table_html=table_html,
         dates=dates,
-        values=values
+        values=values,
+        monthly_summary=monthly_summary_list
     )
+
+
 
 
 @app.route('/sales')

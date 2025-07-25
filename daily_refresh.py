@@ -27,10 +27,20 @@ def generate_apo_data(warehouse='NJ'):
     df = df.set_index('Date').reindex(full_dates).fillna(0).rename_axis('Date').reset_index()
     df.columns = ['Date', 'APO', 'AGA Count', 'Oversea Count']
     df.rename(columns={'APO': 'Total APO'}, inplace=True)
+
     df['Total APO'] = df['Total APO'].astype(int)
     df['AGA Count'] = df['AGA Count'].astype(int)
     df['Oversea Count'] = df['Oversea Count'].astype(int)
-    return df
+
+    # ✅ 统计 total，但不合并进主 df
+    total_row = {
+        'Total APO': df['Total APO'].sum(),
+        'AGA Count': df['AGA Count'].sum(),
+        'Oversea Count': df['Oversea Count'].sum()
+    }
+
+    return df, total_row
+
 
 
 
